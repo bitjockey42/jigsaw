@@ -355,8 +355,9 @@ function confirmStop() {
     if (!playing) return; // ignore if not playing
     new Modal({
         lines: ["Are you sure you want to stop this game ?"],
-        buttons: [{ text: "stop", callback: () => events.push({ event: "stop" }) },
-        { text: "continue" }
+        buttons: [
+            { text: "stop", callback: () => events.push({ event: "stop" }) },
+            { text: "continue" }
         ]
     });
 }
@@ -2008,7 +2009,21 @@ let events = []; // queue for events
                     puzzle.polyPieces.forEach(pp => pp.drawImage())
                 }
                 if (!event) return;
-                if (event.event == "stop") { state = 10; return; }
+                if (event.event == "stop") { 
+                    let savedData = puzzle.getStateData();
+                    let savedString = JSON.stringify(savedData);
+                    try {
+                        localStorage.setItem("savepuzzle", savedString);
+                        ui.save.classList.add("enhanced");
+                        setTimeout(() => ui.save.classList.remove("enhanced"), 500);
+                    } catch (exception) {
+                        popup(["Something went wrong trying to save the game.",
+                            "Consider saving the game in a file.",
+                            `JS says: ${exception.message}`]);
+                    }
+                    state = 10;
+                    return; 
+                }
                 if (event.event == "nbpieces") {
                     puzzle.nbPieces = event.nbpieces;
                     state = 20;

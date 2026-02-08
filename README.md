@@ -1,0 +1,51 @@
+This is just a simple Electron app packaging of the excellent [Dillon's Jigsaw Puzzle on Codepen](https://codepen.io/Dillo/pen/QWKLYab), with a few changes. I put this together for my wife, who loves jigsaw puzzles.
+
+# Developer instructions
+
+```shell
+npm install
+
+# To start the app in development mode
+npm start
+
+# To make and package the app
+npm run make
+```
+
+## Windows Instructions
+
+You'll need to install:
+
+- [nvm for Windows](https://www.nvmnode.com/guide/download.html)
+- [Git for Windows](https://git-scm.com/install/windows)
+- [GitHub desktop](https://desktop.github.com/download/)
+
+**Install `node`**
+
+`cd` to this repo, then run `nvm use`. 
+
+Then, after all of the above are done installing, you need to do a couple things.
+
+**Allow execution of `npm` command**
+
+After installing 
+
+Search for "PowerShell" on the Start menu. Right-click on it and click "Run as administrator". Run:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Then check that it was set:
+```powershell
+Get-ExecutionPolicy
+```
+
+This should return `RemoteSigned`.
+
+Then to actually run `npm`, open a new Terminal window and create a new PowerShell tab (if it isn't the default one set).
+
+# Credits
+
+- [Dillon's Jigsaw Puzzle on Codepen](https://codepen.io/Dillo/pen/QWKLYab)
+- Icon by [Read](https://freeicons.io/profile/1) on [freeicons.io](https://freeicons.io/)
+ 

@@ -1,4 +1,13 @@
+# Jigsaw game
+
 This is just a simple Electron app packaging of the excellent [Dillon's Jigsaw Puzzle on Codepen](https://codepen.io/Dillo/pen/QWKLYab), with a few changes. I put this together for my wife, who loves jigsaw puzzles.
+
+# Credits and Licenses
+
+- [Dillon's Jigsaw Puzzle on Codepen](https://codepen.io/Dillo/pen/QWKLYab)
+  - The files `src/index.html`, `src/jigsaw.js`, `src/index.css` are all under [this](licenses/Dillon-Jigsaw-Puzzle-License.txt) license.
+- Icon by [Read](https://freeicons.io/profile/1) on [freeicons.io](https://freeicons.io/)
+- Otherwise licensed under [MIT license](licenses/MIT-License.txt) 
 
 # Developer instructions
 
@@ -43,9 +52,3 @@ Get-ExecutionPolicy
 This should return `RemoteSigned`.
 
 Then to actually run `npm`, open a new Terminal window and create a new PowerShell tab (if it isn't the default one set).
-
-# Credits
-
-- [Dillon's Jigsaw Puzzle on Codepen](https://codepen.io/Dillo/pen/QWKLYab)
-- Icon by [Read](https://freeicons.io/profile/1) on [freeicons.io](https://freeicons.io/)
- 

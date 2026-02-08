@@ -2013,6 +2013,7 @@ let events = []; // queue for events
                     puzzle.nbPieces = event.nbpieces;
                     state = 20;
                 } else if (event.event == "save") {
+                    console.log("Saving...");
                     filesave = event.file; // record if storage or file save
                     state = 120;
                 } else if (event.event == "touch") {

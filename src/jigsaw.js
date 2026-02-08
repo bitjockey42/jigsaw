@@ -1826,7 +1826,7 @@ let loadSaved;
 } //  // scope for loadSaved
 
 function loadInitialFile() {
-    let defaultImage = "https://assets.codepen.io/2574552/Mona_Lisa.jpg";
+    let defaultImage = "https://images.unsplash.com/photo-1581938165093-050aeb5ef218?q=80&w=735&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
     puzzle.imageLoaded = false;
     loadRemoteFile(defaultImage);
     makeSaveFileName(defaultImage);

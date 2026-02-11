@@ -1,7 +1,9 @@
 /** 
  * Originally by Dillon https://codepen.io/Dillo/pen/QWKLYab
 */
-// last update: 2026/01/20
+"use strict";
+// last update: 2026/02/10
+// tester bouton + / - pour faire zoom
 let puzzle, autoStart;
 let playing;
 let useMouse = true;
@@ -355,9 +357,8 @@ function confirmStop() {
     if (!playing) return; // ignore if not playing
     new Modal({
         lines: ["Are you sure you want to stop this game ?"],
-        buttons: [
-            { text: "stop", callback: () => events.push({ event: "stop" }) },
-            { text: "continue" }
+        buttons: [{ text: "stop", callback: () => events.push({ event: "stop" }) },
+        { text: "continue" }
         ]
     });
 }
@@ -367,7 +368,7 @@ const helptext = ["Thank you for playing my jigsaw puzzle game.",
     "Check the \"enable rotation\" checkbox to randomly rotate the pieces. Rotate the pieces by clicking/tapping them.",
     "Choose from the different piece shapes available.",
     "Choose the number of pieces. This is not an accurate value, depending on the dimensions of your picture, the exact number of pieces may be slightly different.",
-    "You can zoom in and out with the mouse wheel or by pinching. This action can become slow at high numbers of pieces.",
+    "You can zoom in and out with the mouse wheel or by pinching, or with the keyboard keys Ctrl + and Ctrl -.",
     "You can move the whole game at a time in any direction by touching the surface outside of any piece, and moving around. Combined with the zoom feature, this gives you access to a virtually unlimited game area.",
     "Last, you can save a game in progress, and restore it later. Two methods are proposed, see individual help buttons for details."
 ];
@@ -425,12 +426,23 @@ class Segment {
     }
 } // class Segment
 //-----------------------------------------------------------------------------
+function getTransformMatrix(orgx, orgy, scalex, scaley, rot, destx, desty) {
+
+    const rotMatrices = [, new DOMMatrix([0, 1, -1, 0, 0, 0]),
+        new DOMMatrix([-1, 0, 0, -1, 0, 0]),
+        new DOMMatrix([0, -1, 1, 0, 0, 0])];
+
+    let mat = new DOMMatrix([1, 0, 0, 1, destx, desty]); // translation (-orgx,-orgy)
+    if (rot) mat.multiplySelf(rotMatrices[rot]);
+    mat.scaleSelf(scalex, scaley);
+    return mat.translateSelf(-orgx, -orgy);
+} //
+//-----------------------------------------------------------------------------
 // one side of a piece
 class Side {
     constructor() {
         this.type = ""; // "d" pour straight line or "z" pour classic
         this.points = []; // real points or Bezier curve points
-        // this.scaledPoints will be added when we know the scale
     } // Side
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -444,43 +456,28 @@ class Side {
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    scale() {
-        /* uses actual dimensions of puzzle to compute actual side points
-        these points are not shifted by the piece position : the top left corner is at (0,0)
-        */
-        const coefx = puzzle.scalex;
-        const coefy = puzzle.scaley;
-        this.scaledPoints = this.points.map(p => new Point(p.x * coefx, p.y * coefy));
-
-    } //
-
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
     /*
     draws the path corresponding to a side
     Parameters :
-      ctx : canvas context
-      shiftx, shifty : position shift (used to create emboss effect)
-      withoutMoveTo : to decide whether to do a moveTo to the first point. Without MoveTo
-      must be done only for the first side of a piece, not for the following ones
+      path : path2D or ctx where the path will be drawn
+      first : true to begin with moveTo, false to continue already begun path
     */
-
-    drawPath(ctx, shiftx, shifty, withoutMoveTo) {
-
-        if (!withoutMoveTo) {
-            ctx.moveTo(this.scaledPoints[0].x + shiftx, this.scaledPoints[0].y + shifty);
+    drawNormPath(path, first) {
+        // raw draw in path
+        if (first) {
+            path.moveTo(this.points[0].x, this.points[0].y);
         }
         if (this.type == "d") {
-            ctx.lineTo(this.scaledPoints[1].x + shiftx, this.scaledPoints[1].y + shifty);
+            path.lineTo(this.points[1].x, this.points[1].y);
         } else { // edge zigzag
-            for (let k = 1; k < this.scaledPoints.length - 1; k += 3) {
-                ctx.bezierCurveTo(this.scaledPoints[k].x + shiftx, this.scaledPoints[k].y + shifty,
-                    this.scaledPoints[k + 1].x + shiftx, this.scaledPoints[k + 1].y + shifty,
-                    this.scaledPoints[k + 2].x + shiftx, this.scaledPoints[k + 2].y + shifty);
+            for (let k = 1; k < this.points.length - 1; k += 3) {
+                path.bezierCurveTo(this.points[k].x, this.points[k].y,
+                    this.points[k + 1].x, this.points[k + 1].y,
+                    this.points[k + 2].x, this.points[k + 2].y);
             } // for k
         } // if jigsaw side
+    } // Side.drawNormPath
 
-    } // Side.drawPath
 } // class Side
 //-----------------------------------------------------------------------------
 /* modifies a side
@@ -645,13 +642,6 @@ class Piece {
         this.ky = ky;
     }
 
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    scale() {
-        this.ts.scale();
-        this.rs.scale();
-        this.bs.scale();
-        this.ls.scale();
-    } // Piece.scale
 } // class Piece
 //--------------------------------------------------------------
 //--------------------------------------------------------------
@@ -668,14 +658,10 @@ class PolyPiece {
         this.pieces = [initialPiece];
         this.selected = false;
         this.listLoops();
-
-        this.canvas = document.createElement('CANVAS');
-        // size and z-index will be defined later
-        puzzle.container.appendChild(this.canvas);
-        this.canvas.classList.add('polypiece');
-        this.ctx = this.canvas.getContext("2d");
+        this.getNormPath();
+        this.getNormIntPath();
         this.rot = 0; // PolyPiece is in "normal" position - 1 for 90 deg.cw, 2 and 3 for 180 and 270 deg
-    } // PolyPiece
+    } // PolyPiece.constructor
 
     // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -   -
     /*
@@ -690,14 +676,13 @@ class PolyPiece {
 
         const orgpckxmin = this.pckxmin;
         const orgpckymin = this.pckymin;
-        const pbefore = getTransformed(0, 0, this.nx * puzzle.scalex, this.ny * puzzle.scaley, this.rot);
+        const pbefore = this.fromNormMatrix.transformPoint({ x: orgpckxmin, y: orgpckymin });
 
         // remove otherPoly from list of polypieces
         const kOther = puzzle.polyPieces.indexOf(otherPoly);
         puzzle.polyPieces.splice(kOther, 1);
 
         // remove other canvas from container
-        puzzle.container.removeChild(otherPoly.canvas);
 
         for (let k = 0; k < otherPoly.pieces.length; ++k) {
             this.pieces.push(otherPoly.pieces[k]);
@@ -718,23 +703,22 @@ class PolyPiece {
             return 0; // should not occur
         });
 
-        // redefine consecutive edges
-        this.listLoops();
-        this.drawImage();
         /* evaluate translation required to keep the original pieces of this PolyPiece in their position
         assuming no translation, we compute the actual position of a given point before and after merging.
          Then we translate accordingly
          We take the top left point of the original (before merging / rotating) point as a reference
          */
-        const pafter = getTransformed(puzzle.scalex * (orgpckxmin - this.pckxmin),
-            puzzle.scaley * (orgpckymin - this.pckymin),
-            puzzle.scalex * (this.pckxmax - this.pckxmin + 1),
-            puzzle.scaley * (this.pckymax - this.pckymin + 1),
-            this.rot);
+        this.setTransforms();
+        const pafter = this.fromNormMatrix.transformPoint({ x: orgpckxmin, y: orgpckymin });
 
         this.moveTo(this.x - pafter.x + pbefore.x,
             this.y - pafter.y + pbefore.y);
-        puzzle.evaluateZIndex();
+        // redefine consecutive edges
+        this.listLoops();
+        this.getNormPath();
+        this.getNormIntPath();
+
+        puzzle.evaluateOrder();
 
         function getTransformed(orgx, orgy, width, height, rot) {
             /* returns the coordinates of a point in a transformed element
@@ -919,14 +903,7 @@ class PolyPiece {
     }
     // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -   -
     getOrgP() {
-        const rect = this.getRect();
-        switch (this.rot) {
-            case 0: return { x: rect.x - puzzle.scalex * this.pckxmin, y: rect.y - puzzle.scaley * this.pckymin };
-            case 1: return { x: rect.right + puzzle.scaley * this.pckymin, y: rect.y - puzzle.scalex * this.pckxmin };
-            case 2: return { x: rect.right + puzzle.scalex * this.pckxmin, y: rect.bottom + puzzle.scaley * this.pckymin };
-            case 3: return { x: rect.x - puzzle.scaley * this.pckymin, y: rect.bottom + puzzle.scalex * this.pckxmin };
-        }
-
+        return { x: this.fromNormMatrix.e, y: this.fromNormMatrix.f };
     } //getOrgP
     // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -   -
 
@@ -939,146 +916,111 @@ class PolyPiece {
             });
             ctx.closePath();
         });
-
     } // PolyPiece.drawPath
-
-    // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -   -
+    // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    getNormPath() {
+        // returns an array of paths defined on a normalized image
+        this.normPath = new Path2D();
+        let pth;
+        this.tbLoops.forEach(loop => {
+            pth = new Path2D();
+            loop.forEach((side, k) => {
+                side.drawNormPath(pth, k == 0);
+            });
+            this.normPath.addPath(pth);
+        });
+        return this.normPath;
+    } // getNormPath
+    // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    getNormIntPath() {
+        // returns a path made of all the internal edges
+        this.normIntPath = new Path2D();
+        let edg = this.tbLoops.flat();
+        this.pieces.forEach((pc, kk) => {
+            if (!edg.includes(pc.rs)) pc.rs.drawNormPath(this.normIntPath, true);
+            if (!edg.includes(pc.bs)) pc.bs.drawNormPath(this.normIntPath, true);
+        });
+        return this.normIntPath;
+    } // getNormIntPath
+    // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    setTransforms() {
+        // set transform matrix for this polyPiece
+        this.fromNormMatrix = getTransformMatrix(this.pckxmin, this.pckymin, puzzle.scalex, puzzle.scaley, this.rot, this.x, this.y);
+        const ech = puzzle.gameWidth / puzzle.srcImage.naturalWidth;
+        this.fromSrcMatrix = getTransformMatrix(this.pckxmin * puzzle.scaleXSrc, this.pckymin * puzzle.scaleYSrc, ech, ech, this.rot, this.x, this.y);
+    } // setTransforms
+    // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    getNormCopyRect() {
+        return [{ x: this.pckxmin - (this.pckxmin ? 0.5 : 0), y: this.pckymin - (this.pckymin ? 0.5 : 0) },
+        { x: this.pckxmax + ((this.pckxmax == puzzle.nx) ? 0 : 0.5), y: this.pckymax + ((this.pckymax == puzzle.ny) ? 0 : 0.5) }
+        ]
+    }
+    // -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 
     drawImage(special) {
-        /* resizes canvas to be bigger than if pieces were perfect rectangles
-        so that their shapes actually fit in the canvas
-        copies the relevant part of gamePicture clipped by path
-        adds shadow and emboss
-        */
-        this.nx = this.pckxmax - this.pckxmin + 1;
-        this.ny = this.pckymax - this.pckymin + 1;
-        this.canvas.width = this.nx * puzzle.scalex;
-        this.canvas.height = this.ny * puzzle.scaley;
 
-        // difference between position in this canvas and position in gameImage (unrotated)
+        this.setTransforms(); // may be not the best place to do this.
 
-        this.offsx = (this.pckxmin - 0.5) * puzzle.scalex;
-        this.offsy = (this.pckymin - 0.5) * puzzle.scaley;
+        let pth = new Path2D();
+        pth.addPath(this.normPath, this.fromNormMatrix);
+        this.playPath = pth; //
 
-        this.path = new Path2D();
-        this.drawPath(this.path, -this.offsx, -this.offsy);
+        let rect = this.getNormCopyRect();
+        let pa = this.fromNormMatrix.transformPoint(rect[0]);
+        let pb = this.fromNormMatrix.transformPoint(rect[1]);
+
+        if (mmax(pa.x, pb.x) < 0 || mmax(pa.y, pb.y) < 0 || mmin(pa.x, pb.x) > puzzle.contWidth || mmin(pa.y, pb.y) > puzzle.contHeight) return; // not on screen
+        let ctx = puzzle.playCtx;
+        if (this.isMoving) {
+            ctx = puzzle.moveCtx;
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        }
+
+        ctx.strokeStyle = "#000";
 
         // make shadow
-        this.ctx.fillStyle = 'none';
-        this.ctx.shadowColor = this.selected ? (special ? 'lime' : 'gold') : 'rgba(0, 0, 0, 0.5)';
-        this.ctx.shadowBlur = this.selected ? mmin(8, puzzle.scalex / 10) : 4;
-        this.ctx.shadowOffsetX = this.selected ? 0 : ([-4, 4, 4, -4][this.rot]);
-        this.ctx.shadowOffsetY = this.selected ? 0 : ([4, 4, -4, -4][this.rot]);
-        this.ctx.fill(this.path);
-        if (this.selected) this.ctx.fill(this.path); // to make selection blur more visible
-        if (this.selected) this.ctx.fill(this.path); // ugly, but effective
-        if (this.selected) this.ctx.fill(this.path);
-        if (this.selected) this.ctx.fill(this.path);
-        if (this.selected) this.ctx.fill(this.path);
-        if (this.selected) this.ctx.fill(this.path);
-        this.ctx.shadowColor = 'rgba(0, 0, 0, 0)'; // stop shadow effect
+        ctx.fillStyle = 'none';
+        ctx.shadowColor = this.selected ? (special ? 'lime' : 'gold') : 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = this.selected ? mmin(8, puzzle.scalex / 10) : 4;
+        ctx.shadowOffsetX = this.selected ? 0 : -4;
+        ctx.shadowOffsetY = this.selected ? 0 : 4;
+        ctx.fill(pth);
+        if (this.selected) for (let k = 0; k < 6; ++k) ctx.fill(pth);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0)'; // stop shadow effect
 
-        const dxemboss = puzzle.embossThickness / 2 * [1, -1, -1, 1][this.rot];
-        const dyemboss = puzzle.embossThickness / 2 * [-1, -1, 1, 1][this.rot];
+        ctx.save();
+        ctx.clip(pth);
 
-        if (puzzle.drawMode == "0") { // emboss everywhere
-            this.pieces.forEach((pp, kk) => {
+        let dx = (rect[1].x - rect[0].x) * puzzle.scaleXSrc;
+        let dy = (rect[1].y - rect[0].y) * puzzle.scaleYSrc;
+        let x0Src = rect[0].x * puzzle.scaleXSrc;
+        let y0Src = rect[0].y * puzzle.scaleYSrc;
 
-                this.ctx.save();
+        ctx.setTransform(this.fromSrcMatrix);
+        ctx.drawImage(puzzle.srcImage, x0Src, y0Src, dx, dy, x0Src, y0Src, dx, dy);
+        ctx.resetTransform();
+        const dxemboss = puzzle.embossThickness / 2;
+        const dyemboss = -puzzle.embossThickness / 2;
 
-                const path = new Path2D();
-                const shiftx = -this.offsx;
-                const shifty = -this.offsy;
-                pp.ts.drawPath(path, shiftx, shifty, false);
-                pp.rs.drawPath(path, shiftx, shifty, true);
-                pp.bs.drawPath(path, shiftx, shifty, true);
-                pp.ls.drawPath(path, shiftx, shifty, true);
-                path.closePath();
-
-                this.ctx.clip(path);
-                let srcdx = Math.floor(puzzle.srcImage.naturalWidth) / puzzle.nx;
-                let srcdy = Math.floor(puzzle.srcImage.naturalHeight) / puzzle.ny;
-
-                let wsrc = 2 * srcdx;      // width to copy (src)
-                let hsrc = 2 * srcdy;
-
-                // do not copy from negative coordinates, does not work for all browsers
-                const srcx = pp.kx ? ((pp.kx - 0.5) * srcdx) : 0;
-                const srcy = pp.ky ? ((pp.ky - 0.5) * srcdy) : 0;
-
-                const destx = (pp.kx ? 0 : puzzle.scalex / 2) + (pp.kx - this.pckxmin) * puzzle.scalex;
-                const desty = (pp.ky ? 0 : puzzle.scaley / 2) + (pp.ky - this.pckymin) * puzzle.scaley;
-
-                // do not copy either from beyond width and height
-
-                if (srcx + wsrc > Math.floor(puzzle.srcImage.naturalWidth)) wsrc = Math.floor(puzzle.srcImage.naturalWidth) - srcx;
-                if (srcy + hsrc > Math.floor(puzzle.srcImage.naturalHeight)) hsrc = Math.floor(puzzle.srcImage.naturalHeight) - srcy;
-
-                let wdest = wsrc * puzzle.scalex / srcdx;
-                let hdest = hsrc * puzzle.scaley / srcdy;
-
-                this.ctx.drawImage(puzzle.srcImage, srcx, srcy, wsrc, hsrc,
-                    destx, desty, wdest, hdest);
-
-                drawEmboss(this.ctx, path)
-
-                this.ctx.restore();
+        if (puzzle.drawMode == 3) { // individual emboss on each piece
+            ctx.restore();
+            this.pieces.forEach(pc => {
+                let pthi = new Path2D();
+                pthi.addPath(pc.normPath, this.fromNormMatrix);
+                ctx.save();
+                ctx.clip(pthi);
+                drawEmboss(ctx, pthi);
+                ctx.restore();
             });
-        } else { // emboss perimeter only
-            this.ctx.save();
-
-            this.ctx.clip(this.path);
-            let srcdx = Math.floor(puzzle.srcImage.naturalWidth) / puzzle.nx;
-            let srcdy = Math.floor(puzzle.srcImage.naturalHeight) / puzzle.ny;
-
-            let wsrc = (this.pckxmax - this.pckxmin + 2) * srcdx;      // width to copy (src)
-            let hsrc = (this.pckymax - this.pckymin + 2) * srcdy;
-
-            // do not copy from negative coordinates, does not work for all browsers
-            const srcx = this.pckxmin ? ((this.pckxmin - 0.5) * srcdx) : 0;
-            const srcy = this.pckymin ? ((this.pckymin - 0.5) * srcdy) : 0;
-
-            const destx = (this.pckxmin ? 0 : puzzle.scalex / 2);
-            const desty = (this.pckymin ? 0 : puzzle.scaley / 2);
-
-            // do not copy either from beyond width and height
-
-            if (srcx + wsrc > Math.floor(puzzle.srcImage.naturalWidth)) wsrc = Math.floor(puzzle.srcImage.naturalWidth) - srcx;
-            if (srcy + hsrc > Math.floor(puzzle.srcImage.naturalHeight)) hsrc = Math.floor(puzzle.srcImage.naturalHeight) - srcy;
-
-            let wdest = wsrc * puzzle.scalex / srcdx;
-            let hdest = hsrc * puzzle.scaley / srcdy;
-
-            this.ctx.drawImage(puzzle.srcImage, srcx, srcy, wsrc, hsrc,
-                destx, desty, wdest, hdest);
-
-            drawEmboss(this.ctx, this.path);
-            this.ctx.restore();
-
+        } else {
+            drawEmboss(ctx, pth); // global emboss on polypiece
+            if (puzzle.drawMode == "1") drawInternal(ctx, this);
+            ctx.restore();
         }
 
-
-        if (puzzle.drawMode == "2") { // thin line between pieces
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeStyle = "#ffffff";
-            let sv = this.ctx.globalCompositeOperation
-            this.ctx.globalCompositeOperation = 'difference';
-            this.ctx.beginPath();
-            let edg = this.tbLoops.flat();
-            this.pieces.forEach((pp, kk) => {
-                if (!edg.includes(pp.rs)) pp.rs.drawPath(this.ctx, -this.offsx, -this.offsy, false);
-                if (!edg.includes(pp.bs)) pp.bs.drawPath(this.ctx, -this.offsx, -this.offsy, false);
-            })
-            this.ctx.stroke();
-            this.ctx.globalCompositeOperation = sv;
-        }
-
-        this.canvas.style.transform = `rotate(${90 * this.rot}deg)`;
 
         function drawEmboss(ctx, path) {
-
             ctx.lineWidth = puzzle.embossThickness * 1.5;
-
             ctx.translate(dxemboss, dyemboss);
             ctx.strokeStyle = "rgba(0, 0, 0, 0.35)";
             ctx.stroke(path);
@@ -1088,72 +1030,41 @@ class PolyPiece {
             ctx.stroke(path);
         } // drawEmboss
 
-    } // PolyPiece.drawImage
+        function drawInternal(ctx, pp) {
+            let pth = new Path2D();
+            pth.addPath(pp.normIntPath, pp.fromNormMatrix);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "#ffffff";
+            let sv = ctx.globalCompositeOperation;
+            ctx.globalCompositeOperation = 'difference';
+            ctx.stroke(pth);
+            ctx.globalCompositeOperation = 'sv';
+        }
+
+    } // drawImage
 
     moveTo(x, y) {
-        // sets the left, top properties (relative to container) of this.canvas
         this.x = x;
         this.y = y;
-        this.canvas.style.left = x + 'px';
-        this.canvas.style.top = y + 'px';
+        this.setTransforms();
     } //
 
-    moveToInitialPlace() {
-        this.moveTo(puzzle.offsx + (this.pckxmin - 0.5) * puzzle.scalex,
-            puzzle.offsy + (this.pckymin - 0.5) * puzzle.scaley);
-    }
-
     rotate(angle) {
+        let pCenter = { x: (this.pckxmin + this.pckxmax) / 2, y: (this.pckymin + this.pckymax) / 2 }
+        let pCenterDisp = this.fromNormMatrix.transformPoint(pCenter);
         /* angle = orientation : 0 to 3 by 90 deg steps clockwise  */
         this.rot = angle;
+        const mtrx = getTransformMatrix(pCenter.x, pCenter.y, puzzle.scalex, puzzle.scaley, this.rot, pCenterDisp.x, pCenterDisp.y);
+        let pAfter = mtrx.transformPoint({ x: this.pckxmin, y: this.pckymin });
+        // make a fake "moveTo" to compensate for the displacement of the center of the polypiece
+        this.x = pAfter.x;
+        this.y = pAfter.y;
+        //  notice : another"setTransforms" will have to be done since this.x and this.y have been changed
     }
     isPointInPath(p) {
-        let npath = new Path2D();
-        this.drawPath(npath, 0, 0);
-        let rect = this.getRect();
-
-        let pRefx = [rect.x, rect.right, rect.right, rect.x][this.rot];
-        let pRefy = [rect.y, rect.y, rect.bottom, rect.bottom][this.rot];
-
-        let mposx = [1, 0, -1, 0][this.rot] * (p.x - pRefx) + [0, 1, 0, -1][this.rot] * (p.y - pRefy);
-        let mposy = [0, -1, 0, 1][this.rot] * (p.x - pRefx) + [1, 0, -1, 0][this.rot] * (p.y - pRefy);
-
-        return (this.ctx.isPointInPath(this.path, mposx, mposy))
+        return (puzzle.playCtx.isPointInPath(this.playPath, p.x, p.y))
 
     } // isPointInPath
-    coerceToContainer() {
-        // make sure that at least a visible part of the piece is inside the container
-        /* a polypiece can extend beyond the edges of the container by the size of one piece, due to the 1/2 piece margin left around
-        the pieces themselves + 1/2 piece hidden
-        A bit tricky because of the rotation of the pieces
-        */
-        let dimx = [puzzle.scalex, puzzle.scaley, puzzle.scalex, puzzle.scaley][this.rot];
-        let dimy = [puzzle.scaley, puzzle.scalex, puzzle.scaley, puzzle.scalex][this.rot];
-        const rect = this.getRect();
-        // if both top and bottom edges are visible, only coerce x coordinates
-        if (rect.y > - dimy && rect.bottom < puzzle.contHeight + dimy) {
-            if (rect.right < dimx) { this.moveTo(this.x + dimx - rect.right, this.y); return; };
-            if (rect.x > puzzle.contWidth - dimx) { this.moveTo(this.x + puzzle.contWidth - dimx - rect.x, this.y); return; };
-            return;
-        }
-        // if both left and right edges are visible, only coerce y coordinates
-        if (rect.x > - dimx && rect.right < puzzle.contHeight + dimy) {
-            if (rect.bottom < dimy) { this.moveTo(this.x, this.y + dimy - rect.bottom); return; };
-            if (rect.y > puzzle.contHeight - dimy) { this.moveTo(this.x, this.y + puzzle.contHeight - dimy - rect.y); return; };
-            return;
-        }
-        // coerce vertical completely between bounds, the horizontally just on the window edge
-        if (rect.y < - dimy) {
-            this.moveTo(this.x, this.y - rect.y - dimy); this.getRect();
-        }
-        if (rect.bottom > puzzle.contHeight + dimy) {
-            this.moveTo(this.x, this.y + puzzle.contHeight + dimy - rect.bottom); this.getRect();
-        }
-        if (rect.right < dimx) { this.moveTo(this.x + dimx - rect.right, this.y); return; };
-        if (rect.x > puzzle.contWidth - dimx) { this.moveTo(this.x + puzzle.contWidth - dimx - rect.x, this.y); return; };
-        return;
-    }
-
 } // class PolyPiece
 
 //-----------------------------------------------------------------------------
@@ -1247,10 +1158,20 @@ class Puzzle {
         this.container.addEventListener("wheel", event => {
             useMouse = true;
             event.preventDefault();
-            if (events.length && events.at(-1).event == 'wheel') events.pop(); // avoid multiple consecutive wheel events
-            events.push({ event: 'wheel', wheel: event });
+            if (events.length && events.at(-1).event == "wheel") events.pop(); // avoid multiple consecutive wheel events
+            events.push({ event: "wheel", wheel: event });
         });
-
+        const KDINSTALLED = "kdinstalledcct5874"; // to prevent double installation
+        if (!(KDINSTALLED in document.body.dataset)) {
+            document.body.addEventListener("keydown", event => {
+                if (event.key != "+" && event.key != "-" || !event.ctrlKey) return; // not for us, ignore
+                // if zoom by keybord, imitate a mouse event
+                event.preventDefault();
+                if (events.length && events.at(-1).event == "wheel") events.pop(); // avoid multiple consecutive wheel events
+                events.push({ event: "wheel", wheel: { deltaY: (event.key == "+") ? 1 : -1 }, center: { x: puzzle.contWidth / 2, y: puzzle.contHeight / 2 } });
+            });
+            document.body.dataset[KDINSTALLED] = "1"; // value is not significant
+        }
         this.srcImage = new Image();
         this.imageLoaded = false;
         this.srcImage.addEventListener("load", () => imageLoaded());
@@ -1278,10 +1199,23 @@ class Puzzle {
         this.prng = mMash(baseData ? baseData[3] : null); // pseudo-random number generator used to create the pieces
         this.container.innerHTML = ""; // forget contents
 
+        this.playCanvas = document.createElement("canvas");
+        this.container.append(this.playCanvas);
+        this.playCtx = this.playCanvas.getContext("2d");
+        this.playCanvas.style.position = "absolute";
+
+        this.moveCanvas = document.createElement("canvas");
+        this.container.append(this.moveCanvas);
+        this.moveCtx = this.moveCanvas.getContext("2d");
+        this.moveCanvas.style.position = "absolute";
+
         /* define the number of rows / columns to have almost square pieces
           and a total number as close as possible to the requested number
         */
         this.getContainerSize();
+        this.moveCanvas.width = this.playCanvas.width = this.contWidth;
+        this.moveCanvas.height = this.playCanvas.height = this.contHeight;
+
         if (baseData) {
             this.nx = baseData[0];
             this.ny = baseData[1];
@@ -1291,10 +1225,11 @@ class Puzzle {
         } else {
             this.computenxAndny();
         }
-        /* assuming the width of pieces is 1, computes their height
-             (computenxAndny aims at making relativeHeight as close as possible to 1)
+        /* calculates dimensions of pieces in source image
         */
-        this.relativeHeight = (this.srcImage.naturalHeight / this.ny) / (this.srcImage.naturalWidth / this.nx);
+        this.scaleXSrc = this.srcImage.naturalWidth / this.nx;
+        this.scaleYSrc = this.srcImage.naturalHeight / this.ny;
+        //                this.srcTransformMatrix = getTransformMatrix(0, 0, this.scaleXSrc, this.scaleYSrc, 0, 0, 0);
 
         if (baseData) {
             this.typeOfShape = baseData[5];
@@ -1331,13 +1266,21 @@ class Puzzle {
                     polyp.pckymax = mmax(polyp.pckymax, ky + 1);
                 }
                 polyp.listLoops();
+                polyp.getNormPath();
+                polyp.getNormIntPath();
                 this.polyPieces.push(polyp);
             })
         }
-        this.evaluateZIndex();
+        this.evaluateOrder();
 
     } // Puzzle.create
 
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    drawPolyPieces(butTop) {
+        this.playCtx.clearRect(0, 0, this.playCanvas.width, this.playCanvas.height);
+        let max = this.polyPieces.length - (butTop ? 1 : 0);
+        for (let k = 0; k < max; ++k) this.polyPieces[k].drawImage();
+    } // drawPolyPieces
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     /* computes the number of lines and columns of the puzzle,
       finding the best compromise between the requested number of pieces
@@ -1358,10 +1301,12 @@ class Puzzle {
            and evaluate (arbitrary) quality criterion to keep best result
         */
 
-        for (ky = 0; ky < 5; ky++) {
-            ncv = nVPieces + ky - 2;
-            for (kx = 0; kx < 5; kx++) {
-                nch = nHPieces + kx - 2;
+        for (ky = -2; ky <= 2; ky++) {
+            ncv = nVPieces + ky;
+            if (ncv < 1) continue;
+            for (kx = -2; kx <= 2; kx++) {
+                nch = nHPieces + kx;
+                if (nch < 1) continue;
                 err = nch * height / ncv / width;
                 err = (err + 1 / err) - 2; // error on pieces dimensions ratio)
                 err += mabs(1 - nch * ncv / npieces); // adds error on number of pieces
@@ -1373,7 +1318,6 @@ class Puzzle {
                 }
             } // for kx
         } // for ky
-
     } // computenxAndny
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1441,46 +1385,19 @@ class Puzzle {
                     else
                         twistf(np.bs, corners[ky + 2][kx + 1], corners[ky + 2][kx]);
                 }
+                // make paths for sides
+                np.normPath = new Path2D();
+                np.ts.drawNormPath(np.normPath, true);
+                np.rs.drawNormPath(np.normPath, false);
+                np.bs.drawNormPath(np.normPath, false);
+                np.ls.drawNormPath(np.normPath, false);
+
             } // for kx
         } // for ky
 
     } // Puzzle.defineShapes
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    scale() {
-
-        // we suppose we want the picture to fill 95% of width or height and less or same on other dimension
-        const maxWidth = 0.95 * this.contWidth;
-        const maxHeight = 0.95 * this.contHeight;
-        const woh = this.srcImage.naturalWidth / this.srcImage.naturalHeight;
-        let bestWidth = 0;
-        let piecex, piecey
-        {
-            // let's leave some space to store the pending pieces
-            // it will be a number of rows / columns
-            // the extra space must be at least 20% of the image surface
-            let memoHeight = 0;
-            let xtra = this.nx * this.ny * 1.2; // number of cells + extra
-            for (let extrax = 0; extrax <= mceil(this.nx * 0.2); ++extrax) {
-                let availx = (extrax == 0) ? maxWidth : this.contWidth;
-                for (let extray = 0; extray <= mceil(this.ny * 0.2); ++extray) {
-                    if ((this.nx + extrax) * (this.ny + extray) < xtra) continue;
-                    let availy = (extray == 0) ? maxHeight : this.contHeight;
-                    piecex = availx / (this.nx + extrax);
-                    piecey = piecex * this.nx / woh / this.ny;
-                    if (piecey * (this.ny + extray) > availy) { // y was the limiting direction
-                        piecey = availy / (this.ny + extray);
-                        piecex = piecey * this.ny * woh / this.nx;
-                    }
-                    // keep best result
-                    if (piecex * this.nx > bestWidth) bestWidth = piecex * this.nx;
-                } // for extray
-            } // for extrax
-        }
-
-        this.doScale(bestWidth);
-
-    } // Puzzle.scale
 
     doScale(width) {
 
@@ -1489,17 +1406,8 @@ class Puzzle {
         this.gameWidth = width;
         this.gameHeight = width * this.srcImage.naturalHeight / this.srcImage.naturalWidth;
 
-        /* scale pieces */
         this.scalex = this.gameWidth / this.nx;    // average width of pieces
         this.scaley = this.gameHeight / this.ny;   // average height of pieces
-
-        this.pieces.forEach(row => {
-            row.forEach(piece => piece.scale());
-        }); // this.pieces.forEach
-
-        /* calculate offset for centering image in container */
-        this.offsx = (this.contWidth - this.gameWidth) / 2;
-        this.offsy = (this.contHeight - this.gameHeight) / 2;
 
         /* computes the distance below which two pieces connect
           depends on the actual size of pieces, with lower limit */
@@ -1508,13 +1416,14 @@ class Puzzle {
         /* computes the thickness used for emboss effect */
         // from 2 (scalex = 0)  to 4 (scalex = 200), not more than 4
         this.embossThickness = mmin(2 + this.scalex / 200 * (4 - 2), 4);
-
+        this.polyPieces.forEach(pp => pp.setTransforms());
     }
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sweepBy(dx, dy) {
         this.polyPieces.forEach(pp => {
             pp.moveTo(pp.x + dx, pp.y + dy);
         })
+        this.drawPolyPieces();
     } // Puzzle.sweepBy
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1523,22 +1432,21 @@ class Puzzle {
         // coef if a multiplier coefficient (1= no change, 0..1 = shrink, >1 = enlarge)
         // center is not moved by the zoom
 
-        let futWidth = puzzle.gameWidth * coef;
-        let futHeight = puzzle.gameHeight * coef;
-        let futScalex = futWidth / puzzle.nx;
-        let futScaley = futHeight / puzzle.ny;
+        let futWidth = this.gameWidth * coef;
+        let futHeight = this.gameHeight * coef;
+        let futScalex = futWidth / this.nx;
+        let futScaley = futHeight / this.ny;
 
         // limits
         if ((futScalex > 1000 || futScaley > 1000 || futWidth > 10000 | futHeight > 10000) && (coef > 1) || (futScalex < 10 || futScaley < 10) && (coef < 1)) return;
         if (coef == 1) return; // nothing to do;
 
-        puzzle.doScale(futWidth);
+        this.doScale(futWidth);
         this.polyPieces.forEach(pp => {
             // translate to new place
             pp.moveTo(coef * (pp.x - center.x) + center.x, coef * (pp.y - center.y) + center.y);
-            pp.drawImage();
         });
-
+        this.drawPolyPieces();
     } // Puzzle.zoomBy
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     relativeMouseCoordinates(event) {
@@ -1553,31 +1461,19 @@ class Puzzle {
         };
         return lastMousePos;
     } // Puzzle.relativeMouseCoordinates
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    limitRectangle(rect) {
-        /* limits the possible position for the coordinates of a piece, to prevent it from beeing out of the
-        container
-        assumes pieces may be rotated
-        */
-        let minscale = mmin(this.scalex, this.scaley);
 
-        rect.x0 = mmin(mmax(rect.x0, -minscale / 2), this.contWidth - 1.5 * minscale);
-        rect.x1 = mmin(mmax(rect.x1, -minscale / 2), this.contWidth - 1.5 * minscale);
-        rect.y0 = mmin(mmax(rect.y0, -minscale / 2), this.contHeight - 1.5 * minscale);
-        rect.y1 = mmin(mmax(rect.y1, -minscale / 2), this.contHeight - 1.5 * minscale);
-    }
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     spreadInRectangle(rect) {
-        this.limitRectangle(rect);
-        this.polyPieces.forEach(pp =>
-            pp.moveTo(alea(rect.x0, rect.x1), alea(rect.y0, rect.y1))
-        );
+        this.spreadSetInRectangle(this.polyPieces, rect)
     } // spreadInRectangle
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     spreadSetInRectangle(set, rect) {
-        this.limitRectangle(rect);
-        set.forEach(pp =>
-            pp.moveTo(alea(rect.x0, rect.x1), alea(rect.y0, rect.y1))
+        const dx = [-this.scalex / 2, this.scalex / 2, this.scalex / 2, -this.scalex / 2]; // pos. of ref point with respect to center
+        const dy = [-this.scaley / 2, -this.scaley / 2, this.scaley / 2, this.scaley / 2]; // pos. of ref point with respect to center
+
+        set.forEach(pp => {
+            pp.moveTo(alea(rect.x0, rect.x1) + dx[pp.rot], alea(rect.y0, rect.y1) + dy[pp.rot])
+        }
         );
     } // spreadSetInRectangle
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1590,14 +1486,19 @@ class Puzzle {
         moves the pieces at the beginning of the game along one to four sides of the container
 
         */
+        // min distance from piece center to area reserved for picture
+        let marginx = this.scalex;
+        let marginy = this.scaley;
+        if (this.rotationAllowed) marginx = marginy = Math.max(marginx, marginy);
+
         // extreme values for 1 piece
-        const minx = -this.scalex / 2;
-        const miny = -this.scaley / 2;
-        const maxx = this.contWidth - 1.5 * this.scalex;
-        const maxy = this.contHeight - 1.5 * this.scaley;
+        const minx = 0.5 * marginx;
+        const miny = 0.5 * marginy;
+        const maxx = this.contWidth - 0.5 * marginx;
+        const maxy = this.contHeight - 0.5 * marginy;
         // how much space left around image ?
-        let freex = this.contWidth - this.gameWidth;
-        let freey = this.contHeight - this.gameHeight;
+        let freex = maxx - minx - this.gameWidth - 2 * marginx;
+        let freey = maxy - miny - this.gameHeight - 2 * marginy;
 
         let where = [0, 0, 0, 0]; // to record on which sides pieces will be moved
         let rects = [];
@@ -1605,7 +1506,7 @@ class Puzzle {
         if (freex > 1.5 * this.scalex) {
             where[1] = 1; // right
             rects[1] = {
-                x0: this.gameWidth - 0.5 * this.scalex,
+                x0: this.gameWidth + marginx,
                 x1: maxx,
                 y0: miny, y1: maxy
             };
@@ -1614,17 +1515,17 @@ class Puzzle {
             where[3] = 1; // left
             rects[3] = {
                 x0: minx,
-                x1: freex / 2 - 1.5 * this.scalex,
+                x1: minx + freex / 2,
                 y0: miny, y1: maxy
             };
-            rects[1].x0 = this.contWidth - freex / 2 - 0.5 * this.scalex;
+            rects[1].x0 = maxx - freex / 2;
         }
         if (freey > 1.5 * this.scaley) {
             where[2] = 1; // bottom
             rects[2] = {
                 x0: minx, x1: maxx,
-                y0: this.gameHeight - 0.5 * this.scaley,
-                y1: this.contHeight - 1.5 * this.scaley
+                y0: this.gameHeight + marginy,
+                y1: maxy
             };
         }
         if (freey > 3 * this.scaley) {
@@ -1632,16 +1533,16 @@ class Puzzle {
             rects[0] = {
                 x0: minx, x1: maxx,
                 y0: miny,
-                y1: freey / 2 - 1.5 * this.scaley
+                y1: miny + freey / 2
             };
-            rects[2].y0 = this.contHeight - freey / 2 - 0.5 * this.scaley;
+            rects[2].y0 = maxy - freey / 2;
         }
         if (where.reduce((sum, a) => sum + a) < 2) {
             // if no place defined yet, or only one place
             if (freex - freey > 0.2 * this.scalex || where[1]) {
                 // significantly more place horizontally : to right
                 this.spreadInRectangle({
-                    x0: this.gameWidth - this.scalex / 2,
+                    x0: this.gameWidth + marginx,
                     x1: maxx,
                     y0: miny,
                     y1: maxy
@@ -1651,7 +1552,7 @@ class Puzzle {
                 this.spreadInRectangle({
                     x0: minx,
                     x1: maxx,
-                    y0: this.gameHeight - this.scaley / 2,
+                    y0: this.gameHeight + marginy,
                     y1: maxy
                 });
             } else {
@@ -1660,19 +1561,20 @@ class Puzzle {
                     this.spreadInRectangle({
                         x0: minx,
                         x1: maxx,
-                        y0: this.gameHeight - this.scaley / 2,
+                        y0: this.gameHeight + marginy,
                         y1: maxy
                     });
 
                 } else { // to right
                     this.spreadInRectangle({
-                        x0: this.gameWidth - this.scalex / 2,
+                        x0: this.gameWidth + marginx,
                         x1: maxx,
                         y0: miny,
                         y1: maxy
                     });
                 }
             }
+            arrayShuffle(this.polyPieces);
             return;
         }
         /* more than one area to put the pieces
@@ -1689,11 +1591,136 @@ class Puzzle {
             k0 = k1;
         }
         arrayShuffle(this.polyPieces);
-        this.evaluateZIndex();
 
     } // optimInitial
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    evaluateZIndex() {
+    optim2() {
+        // calculates how to spread pieces around the image for efficient use of available screen space
+        /* pieces are spreaded in a grid ngx * ngy cells, each of size = kspread * size of piece
+         a rectangular space is reserved for the image
+        */
+
+        const calcByNgx = (ngx, k) => {
+            /* assuming the spreading grid has ngx columns, evaluates the biggest picture that can be drawn and fits in the screen with all its pieces around it */
+            if (ngx < 1) return null; // no good solution with less than 1 column!
+            let npictx = mceil(imgWidth / scx - 0.001);
+            if (npictx > ngx) return null;
+            let npicty = mceil(imgHeight / scy - 0.001);
+            let nbTot = npictx * npicty + this.nx * this.ny;
+            let ngy = mceil(nbTot / ngx - 0.001);
+            if (ngy < npicty) return null;
+            return tryxy(ngx, ngy, npictx, npicty, k);
+        } // calcByNgx
+
+        const calcByNgy = (ngy, k) => {
+            /* assuming the spreading grid has ngy rows, evaluates the biggest picture that can be drawn and fits in the screen with all its pieces around it */
+            if (ngy < 1) return null; // no good solution with less than 1 row!
+            let npicty = mceil(imgHeight / scy - 0.001);
+            if (npicty > ngy) return null;
+            let npictx = mceil(imgWidth / scx - 0.001);
+            let nbTot = npictx * npicty + this.nx * this.ny;
+            let ngx = mceil(nbTot / ngy - 0.001);
+            if (ngx < npictx) return null;
+            return tryxy(ngx, ngy, npictx, npicty, k);
+        } // calcByNgx
+
+        const tryxy = (ngx, ngy, npictx, npicty, k) => {
+            let gridRatio = (ngx * scx) / (ngy * scy);
+            let kResult = (gridRatio > dispRatio) ? this.contWidth / (ngx * scx) : this.contHeight / (ngy * scy);
+            return { bestk: kResult, ngx, ngy, npictx, npicty }
+        }
+
+        let ngx, ngy;
+        let kSpread = 1.7; // center-to-center distance of spreaded pieces,
+        let scx = this.scaleXSrc * kSpread; // size of cells where pieces will be spread
+        let scy = this.scaleYSrc * kSpread;
+        let imgWidth = this.srcImage.naturalWidth;
+        let imgHeight = this.srcImage.naturalHeight;
+        let dispRatio = this.contWidth / this.contHeight;
+
+        let bestResult = { bestk: 0 };
+
+        if (this.rotationAllowed) scx = scy = Math.max(scx, scy); // if pieces can be rotated, the largest dimension must me used in both directions
+
+        let resx, resy, respre;
+        respre = null;
+        const lim = 2 * this.nx * this.ny
+        for (let k = 1; k < lim; ++k) {
+            resx = calcByNgx(k, k);
+            if ((resx === null && respre !== null) || (respre !== null && resx !== null && respre.bestk > resx.bestk)) {
+                resx = respre;
+                break;
+            }
+            respre = resx;
+        } // for k
+        respre = null
+        for (let k = 1; k < lim; ++k) {
+            resy = calcByNgy(k, k);
+            if ((resy === null && respre !== null) || (respre !== null && resy !== null && respre.bestk > resy.bestk)) {
+                resy = respre;
+                break;
+            }
+            respre = resy;
+        } // for k
+        bestResult = (resx.bestk > resy.bestk) ? resx : resy;
+
+        // draw rectangle to visualize result
+        let cellw = scx * bestResult.bestk;
+        let cellh = scy * bestResult.bestk;
+        let gw = cellw * bestResult.ngx;
+        let gh = cellh * bestResult.ngy;
+        let offsx = (this.contWidth - gw) / 2;
+        let offsy = (this.contHeight - gh) / 2;
+
+        this.playCtx.resetTransform();
+        this.playCtx.lineWidth = 2;
+        this.playCtx.strokeStyle = "#0f0";
+
+        for (let ky = 0; ky < bestResult.ngy; ++ky) {
+            for (let kx = 0; kx < bestResult.ngx; ++kx) {
+                this.playCtx.beginPath();
+                this.playCtx.moveTo(offsx + kx * cellw, offsy + ky * cellh);
+                this.playCtx.lineTo(offsx + kx * cellw + cellw, offsy + ky * cellh);
+                this.playCtx.lineTo(offsx + kx * cellw + cellw, offsy + ky * cellh + cellh);
+                this.playCtx.lineTo(offsx + kx * cellw, offsy + ky * cellh + cellh);
+                this.playCtx.closePath();
+                this.playCtx.stroke();
+            } // for kx
+        } // for ky
+        const locImx = mfloor((bestResult.ngx - bestResult.npictx) / 2);
+        const locImy = mfloor((bestResult.ngy - bestResult.npicty) / 2);
+        this.gameWidth = imgWidth * bestResult.bestk;
+        this.gameHeight = imgHeight * bestResult.bestk;
+        let offsImgx = offsx + locImx * cellw + (bestResult.npictx * cellw - this.gameWidth) / 2;
+        let offsImgy = offsy + locImy * cellh + (bestResult.npicty * cellh - this.gameHeight) / 2;
+        this.playCtx.strokeStyle = "#f00";
+        this.playCtx.beginPath();
+        this.playCtx.rect(offsImgx, offsImgy, this.gameWidth, this.gameHeight)
+        this.playCtx.stroke();
+
+        this.scalex = this.gameWidth / this.nx;
+        this.scaley = this.gameHeight / this.ny;
+        let kpc = 0;
+        loop2:
+        for (let ky = 0; ky < bestResult.ngy; ++ky) {
+            for (let kx = 0; kx < bestResult.ngx; ++kx) {
+                if (kpc >= this.polyPieces.length) break loop2;
+                // skip place for picture
+                if (ky >= locImy && ky < locImy + bestResult.npicty && kx >= locImx && kx < locImx + bestResult.npictx) continue;
+                let pc = this.polyPieces[kpc++];
+                // put its center at the center of cell kx,ky
+                let centerCellx = offsx + (kx + 0.5) * cellw;
+                let centerCelly = offsy + (ky + 0.5) * cellh;
+                pc.x = centerCellx + [-this.scalex / 2, this.scaley / 2, this.scalex / 2, -this.scaley / 2][pc.rot];
+                pc.y = centerCelly + [-this.scaley / 2, -this.scalex / 2, this.scaley / 2, this.scalex / 2][pc.rot];
+                pc.setTransforms();
+            } // for kx
+        } // for ky
+
+    } // optim2
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    evaluateOrder() {
 
         /* re-evaluates order of polypieces in puzzle after a merge
           the polypieces must be in decreasing order of size(number of pieces),
@@ -1704,13 +1731,8 @@ class Puzzle {
                 // swap pieces if not in right order
                 [this.polyPieces[k], this.polyPieces[k - 1]] = [this.polyPieces[k - 1], this.polyPieces[k]];
             }
-        }
-        // re-assign zIndex
-        this.polyPieces.forEach((pp, k) => {
-            pp.canvas.style.zIndex = k + 10;
-        });
-        this.zIndexSup = this.polyPieces.length + 10; // higher than 'normal' zIndices
-    } // Puzzle.evaluateZIndex
+        } // for k
+    } // Puzzle.evaluateOrder
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     getStateData() {
         /* gathers all required data so that game can be saved and restored
@@ -1890,6 +1912,7 @@ let events = []; // queue for events
     let filesave;
 
     animate = function (tStamp) {
+
         requestAnimationFrame(animate);
 
         let event;
@@ -1903,6 +1926,25 @@ let events = []; // queue for events
                 "You can still try to play with local images or saved games."
             ])
         } // timeout event
+        // resize event
+        if (event?.event == "resize") {
+
+            // remember dimensions of container before resize
+            puzzle.prevWidth = puzzle.contWidth;
+            puzzle.prevHeight = puzzle.contHeight;
+            puzzle.getContainerSize();
+            if (state == 15 || state == 60) { // resize initial or final picture
+                puzzle.getContainerSize();
+                fitImage(tmpImage, puzzle.contWidth * 0.95, puzzle.contHeight * 0.95);
+            }
+            else if (state >= 25) { // resize pieces
+                puzzle.getContainerSize();
+                puzzle.moveCanvas.width = puzzle.playCanvas.width = puzzle.contWidth;
+                puzzle.moveCanvas.height = puzzle.playCanvas.height = puzzle.contHeight;
+                puzzle.drawPolyPieces();
+            }
+        } // resize event
+
 
         switch (state) {
             /* initialisation */
@@ -1916,9 +1958,11 @@ let events = []; // queue for events
                 // display centered initial image
                 puzzle.container.innerHTML = ""; // forget contents
                 tmpImage = document.createElement("img");
+                tmpImage.addEventListener("load", () => {
+                    puzzle.getContainerSize();
+                    fitImage(tmpImage, puzzle.contWidth * 0.95, puzzle.contHeight * 0.95);
+                });
                 tmpImage.src = puzzle.srcImage.src;
-                puzzle.getContainerSize();
-                fitImage(tmpImage, puzzle.contWidth * 0.95, puzzle.contHeight * 0.95);
                 tmpImage.style.boxShadow = "-4px 4px 4px rgba(0, 0, 0, 0.5)";
                 puzzle.container.appendChild(tmpImage);
                 state = 15;
@@ -1959,76 +2003,27 @@ let events = []; // queue for events
                 }
                 if (puzzle.restoredState) {
                     puzzle.doScale(puzzle.restoredState.base[2]);
-                } else {
-                    puzzle.scale()
-                };
-                puzzle.polyPieces.forEach(pp => {
-                    pp.drawImage();
-                    if (puzzle.restoredState) {
-                        pp.moveTo(pp.x, pp.y);
-                    } else {
-                        pp.moveToInitialPlace();
-                    }
-                }); // puzzle.polypieces.forEach
-                state = 25;
-                if (puzzle.restoredState) {
+                    puzzle.polyPieces.forEach(pp => pp.moveTo(pp.x, pp.y));
                     delete puzzle.restoredState;
-                    state = 50; // go waiting
-                }
-                break;
-
-            case 25: // spread pieces
-                puzzle.polyPieces.forEach(pp => {
-                    pp.canvas.classList.add("moving");
-                });
-                state = 30;
-                break;
-
-            case 30: // launch movement
-                puzzle.optimInitial(); // initial "optimal" spread position
-
-                /* this time out must be a bit longer than the css .moving transition-duration */
-                setTimeout(() => events.push({ event: "finished" }), 1200);
-                state = 35;
-                break;
-
-            case 35: // wait for end of movement
-                if (!event || event.event != "finished") return;
-                puzzle.polyPieces.forEach(pp => {
-                    pp.canvas.classList.remove("moving");
-                });
-
+                } else {
+                    puzzle.optim2(); // initial "optimal" spread position
+                    puzzle.doScale(puzzle.gameWidth)
+                };
+                puzzle.drawPolyPieces();
                 state = 50;
-
-                break;
-
+            //break;
             /* wait for user grabbing a piece or other action */
             case 50:
                 if (puzzle.drawMode != ui.drawmode.value) {
                     puzzle.drawMode = ui.drawmode.value;
-                    puzzle.polyPieces.forEach(pp => pp.drawImage())
+                    puzzle.drawPolyPieces();
                 }
                 if (!event) return;
-                if (event.event == "stop") { 
-                    let savedData = puzzle.getStateData();
-                    let savedString = JSON.stringify(savedData);
-                    try {
-                        localStorage.setItem("savepuzzle", savedString);
-                        ui.save.classList.add("enhanced");
-                        setTimeout(() => ui.save.classList.remove("enhanced"), 500);
-                    } catch (exception) {
-                        popup(["Something went wrong trying to save the game.",
-                            "Consider saving the game in a file.",
-                            `JS says: ${exception.message}`]);
-                    }
-                    state = 10;
-                    return; 
-                }
+                if (event.event == "stop") { state = 10; return; }
                 if (event.event == "nbpieces") {
                     puzzle.nbPieces = event.nbpieces;
                     state = 20;
                 } else if (event.event == "save") {
-                    console.log("Saving...");
                     filesave = event.file; // record if storage or file save
                     state = 120;
                 } else if (event.event == "touch") {
@@ -2044,14 +2039,16 @@ let events = []; // queue for events
 
                         if (pp.isPointInPath(event.position)) {
                             pp.selected = true;
-                            pp.drawImage();
+                            //                                    pp.drawImage();
                             moving.pp = pp;
                             moving.ppXInit = pp.x;
                             moving.ppYInit = pp.y;
-                            // move selected piece to top of polypieces stack
+                            // move selected piece to top of PolyPieces stack
                             puzzle.polyPieces.splice(k, 1);
                             puzzle.polyPieces.push(pp);
-                            pp.canvas.style.zIndex = puzzle.zIndexSup; // to foreground
+                            pp.isMoving = true;
+                            puzzle.drawPolyPieces();
+                            //                                    pp.canvas.style.zIndex = puzzle.zIndexSup; // to foreground
                             state = 55;
                             return;
                         }
@@ -2063,8 +2060,9 @@ let events = []; // queue for events
                     moving = { touches: event.touches };
                     state = 110; // go zooming with double touch
                 } else if (event.event == "wheel") {
-                    if (event.wheel.deltaY > 0) puzzle.zoomBy(1.3, lastMousePos);
-                    if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, lastMousePos);
+                    const center = event.center ? event.center : lastMousePos;
+                    if (event.wheel.deltaY > 0) puzzle.zoomBy(1.3, center);
+                    if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 break;
 
@@ -2087,17 +2085,18 @@ let events = []; // queue for events
                         }
                         moving.pp.moveTo(event.position.x - moving.xMouseInit + moving.ppXInit,
                             event.position.y - moving.yMouseInit + moving.ppYInit);
+                        moving.pp.drawImage();
                         break;
                     case "leave":
                         if (puzzle.rotationAllowed && tStamp < moving.tInit + 250) { // short click/touch: rotate
                             moving.pp.rotate((moving.pp.rot + 1) % 4);
-                            moving.pp.coerceToContainer();
                         }
                         // check if moved polypiece is close to a matching other polypiece
                         // check repeatedly since polypieces moved by merging may come close to other polypieces
                         let doneSomething;
                         moving.pp.selected = false;
-                        moving.pp.drawImage();
+                        moving.pp.isMoving = false;
+                        puzzle.moveCtx.clearRect(0, 0, puzzle.moveCanvas.width, puzzle.moveCanvas.height);
                         let merged = false;
                         do {
                             doneSomething = false;
@@ -2120,14 +2119,16 @@ let events = []; // queue for events
 
                         } while (doneSomething);
                         // not at its right place
-                        puzzle.evaluateZIndex();
+                        puzzle.evaluateOrder();
                         if (merged) {
+                            moving.pp.isMoving = true;
                             moving.pp.selected = true;
                             moving.pp.drawImage(true);
                             moving.tInit = tStamp + 500; // final t in fact
                             state = 56;
                             break;
                         }
+                        puzzle.drawPolyPieces();
                         state = 50; // just go back waiting
                         if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 } // switch (event.event)
@@ -2135,8 +2136,10 @@ let events = []; // queue for events
                 break;
             case 56:
                 if (tStamp < moving.tInit) return; // merged piece enlighted
+                moving.pp.isMoving = false;
                 moving.pp.selected = false;
-                moving.pp.drawImage();
+                puzzle.moveCtx.clearRect(0, 0, puzzle.moveCanvas.width, puzzle.moveCanvas.height);
+                puzzle.drawPolyPieces();
                 if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 else state = 50;
                 break;
@@ -2153,8 +2156,8 @@ let events = []; // queue for events
 
                 tmpImage.style.width = `${puzzle.nx * puzzle.scalex}px`;
                 tmpImage.style.height = `${puzzle.ny * puzzle.scaley}px`;;
-                tmpImage.style.left = `${(puzzle.polyPieces[0].x + puzzle.scalex / 2 + puzzle.gameWidth / 2) / puzzle.contWidth * 100}%`;
-                tmpImage.style.top = `${(puzzle.polyPieces[0].y + puzzle.scaley / 2 + puzzle.gameHeight / 2) / puzzle.contHeight * 100}%`;
+                tmpImage.style.left = `${(puzzle.polyPieces[0].x + puzzle.gameWidth / 2) / puzzle.contWidth * 100}%`;
+                tmpImage.style.top = `${(puzzle.polyPieces[0].y + puzzle.gameHeight / 2) / puzzle.contHeight * 100}%`;
                 tmpImage.style.boxShadow = "-4px 4px 4px rgba(0, 0, 0, 0.5)";
                 //              tmpImage.style.top=(puzzle.polyPieces[0].y + puzzle.scaley / 2) / puzzle.contHeight * 100 + 50 + "%" ;
                 //              tmpImage.style.left=(puzzle.polyPieces[0].x + puzzle.scalex / 2) / puzzle.contWidth * 100 + 50 + "%" ;
@@ -2313,10 +2316,6 @@ let events = []; // queue for events
                 break;
 
             case 9999: break;
-            default:
-                let st = state;
-                state = 9999;  // to display message beyond only once
-                throw ("oops, unknown state " + st);
         } // switch(state)
     } // animate
 } // scope for animate
@@ -2324,6 +2323,12 @@ let events = []; // queue for events
 //-----------------------------------------------------------------------------
 
 prepareUI();
+
+window.addEventListener("resize", event => {
+    // do not accumulate resize events in events queue - keep only current one
+    if (events.length && events[events.length - 1].event == "resize") return;;
+    events.push({ event: "resize" });
+});
 
 puzzle = new Puzzle({ container: "forPuzzle" });
 autoStart = isMiniature(); // used for nice miniature in CodePen

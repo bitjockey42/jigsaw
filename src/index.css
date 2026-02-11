@@ -71,7 +71,3 @@ input {
   transition-duration: 1s;
   /*            transition-timing-function: linear; */
 }
-
-.dimmed {
-  color: #888888;
-}

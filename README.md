@@ -21,9 +21,18 @@ npm start
 npm run make
 ```
 
-## Linux instructions
+## Fedora 42 instructions
 
-https://github.com/electron/forge/issues/3701#issuecomment-2552233499
+There is currently an issue running `npm run make` on Fedora 42.
+
+As a workaround, change `node_modules/electron-installer-redhat/resources/spec.ejs` line 27:
+
+```
+- cp <%= process.platform === 'darwin' ? '-R' : '-r' %> usr/* %{buildroot}/usr/
++ cp <%= process.platform === 'darwin' ? '-R' : '-r' %> ../usr/. %{buildroot}/usr/
+```
+
+From: https://github.com/electron/forge/issues/3701#issuecomment-2552233499
 
 ## Windows Instructions
 

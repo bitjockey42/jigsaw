@@ -21,6 +21,10 @@ npm start
 npm run make
 ```
 
+## Linux instructions
+
+https://github.com/electron/forge/issues/3701#issuecomment-2552233499
+
 ## Windows Instructions
 
 You'll need to install:

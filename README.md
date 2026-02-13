@@ -65,3 +65,7 @@ Get-ExecutionPolicy
 This should return `RemoteSigned`.
 
 Then to actually run `npm`, open a new Terminal window and create a new PowerShell tab (if it isn't the default one set).
+
+**Building a package that's signed**
+
+Run Powershell as an administrator, `cd` to the repo, then run `npm run make`.

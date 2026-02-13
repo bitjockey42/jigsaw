@@ -68,4 +68,6 @@ Then to actually run `npm`, open a new Terminal window and create a new PowerShe
 
 **Building a package that's signed**
 
+Follow Steps 1-7 on [this](https://melatonin.dev/blog/code-signing-on-windows-with-azure-trusted-signing/) guide.
+
 Run Powershell as an administrator, `cd` to the repo, then run `npm run make`.

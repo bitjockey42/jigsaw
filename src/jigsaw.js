@@ -2020,7 +2020,11 @@ let events = []; // queue for events
                     puzzle.drawPolyPieces();
                 }
                 if (!event) return;
-                if (event.event == "stop") { state = 10; return; }
+                if (event.event == "stop") { 
+                    save();
+                    state = 10;
+                    return; 
+                }
                 if (event.event == "nbpieces") {
                     puzzle.nbPieces = event.nbpieces;
                     state = 20;
@@ -2066,7 +2070,7 @@ let events = []; // queue for events
                     if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 //console.log("50");
-                save();
+                //save();
                 break;
 
             case 55:  // moving piece

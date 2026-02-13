@@ -2011,6 +2011,7 @@ let events = []; // queue for events
                 };
                 puzzle.drawPolyPieces();
                 state = 50;
+                console.log("20");
             //break;
             /* wait for user grabbing a piece or other action */
             case 50:
@@ -2064,6 +2065,7 @@ let events = []; // queue for events
                     if (event.wheel.deltaY > 0) puzzle.zoomBy(1.3, center);
                     if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
                 }
+                console.log("50");
                 break;
 
             case 55:  // moving piece
@@ -2132,7 +2134,8 @@ let events = []; // queue for events
                         state = 50; // just go back waiting
                         if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 } // switch (event.event)
-
+                save();
+                console.log("55");
                 break;
             case 56:
                 if (tStamp < moving.tInit) return; // merged piece enlighted
@@ -2142,6 +2145,7 @@ let events = []; // queue for events
                 puzzle.drawPolyPieces();
                 if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 else state = 50;
+                console.log("56");
                 break;
 
             case 60: // winning
@@ -2171,6 +2175,7 @@ let events = []; // queue for events
                     , 0);
                 puzzle.container.appendChild(tmpImage);
                 state = 15;
+                console.log("60");
                 break;
 
             case 100:
@@ -2194,6 +2199,7 @@ let events = []; // queue for events
                     moving = { touches: event.touches };
                     state = 110; // go zooming with double touch
                 }
+                console.log("100");
                 break;
 
             case 110:
@@ -2215,6 +2221,7 @@ let events = []; // queue for events
                     moving.touches = event.touches;
                     return;
                 }
+                console.log("110");
                 break;
 
             case 120: // save state
@@ -2321,6 +2328,33 @@ let events = []; // queue for events
 } // scope for animate
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+function debounce(func, delay) {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    }
+}
+
+function save() {
+    let savedData = puzzle.getStateData();
+    let savedString = JSON.stringify(savedData);
+    try {
+        localStorage.setItem("savepuzzle", savedString);
+        ui.save.classList.add("enhanced");
+        setTimeout(() => ui.save.classList.remove("enhanced"), 500);
+    } catch (exception) {
+        popup(["Something went wrong trying to save the game.",
+            "Consider saving the game in a file.",
+            `JS says: ${exception.message}`]);
+    }
+}
+
+function debouncedSave() {
+    debounce(save, 1000);
+}
 
 prepareUI();
 

@@ -5,6 +5,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+electron-windows-sign.log*
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
@@ -60,6 +61,7 @@ typings/
 # dotenv environment variables file
 .env
 .env.test
+.env.trustedsigning
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

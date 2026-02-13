@@ -32,6 +32,7 @@
     "@electron/fuses": "^1.8.0",
     "@electron/notarize": "^3.1.1",
     "@electron/osx-sign": "^2.3.0",
+    "dotenv-cli": "^11.0.0",
     "electron": "40.2.1"
   }
 }

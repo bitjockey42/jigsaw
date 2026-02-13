@@ -1,5 +1,7 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { default: MakerSquirrel } = require('@electron-forge/maker-squirrel');
+const { windowsSign } = require("./windowsSign");
 
 module.exports = {
   packagerConfig: {
@@ -10,16 +12,14 @@ module.exports = {
       appleId: process.env.APPLE_ID,
       appleIdPassword: process.env.APPLE_PASSWORD,
       teamId: process.env.APPLE_TEAM_ID
-    }
+    },
+    windowsSign
   },
   rebuildConfig: {},
   makers: [
-    {
-      name: '@electron-forge/maker-squirrel',
-      config: {
+    new MakerSquirrel({ windowsSign, config: {
         "setupIcon": "./src/assets/icons/icon.ico"
-      },
-    },
+      }}),
     {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin'],

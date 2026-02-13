@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make",
+    "make": "dotenv -e .env.trustedsigning -- electron-forge make",
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\""
   },

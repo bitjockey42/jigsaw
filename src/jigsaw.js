@@ -2066,6 +2066,7 @@ let events = []; // queue for events
                     if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 console.log("50");
+                save();
                 break;
 
             case 55:  // moving piece

@@ -305,7 +305,7 @@ function prepareUI() {
 
     ui.default.addEventListener("click", loadInitialFile);
     ui.load.addEventListener("click", loadFile);
-    ui.start.addEventListener("click", startGame);
+    ui.start.addEventListener("click", confirmStart);
     ui.stop.addEventListener("click", confirmStop);
     ui.save.addEventListener("click", () => events.push({ event: "save" }));
     ui.restore.addEventListener("click", () => events.push({ event: "restore" }));
@@ -360,6 +360,22 @@ function confirmStop() {
         lines: ["Are you sure you want to stop this game ?"],
         buttons: [{ text: "stop", callback: () => events.push({ event: "stop" }) },
         { text: "continue" }
+        ]
+    });
+}
+function confirmStart() {
+    if (playing) return; // ignore if not playing
+    new Modal({
+        lines: ["Are you sure you want to start a new game?"],
+        buttons: [
+            {
+                text: "restore game",
+                callback: () => events.push({ event: "restore" })
+            },
+            {
+                text: "start new game",
+                callback: () => events.push({ event: "start" })
+            }
         ]
     });
 }

@@ -260,7 +260,7 @@ function prepareUI() {
 
     ["default", "load", "enablerot", "enablerotlabel", "shape", "nbpieces", "start", "stop",
         "helpstorage", "save", "restore", "helpfile", "fsave", "frestore",
-        "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
+        "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
 
     ui.open = () => {
         menu.classList.remove("hidden");
@@ -317,6 +317,7 @@ function prepareUI() {
     ui.help.addEventListener("click", () => popup(helptext));
     ui.helpstorage.addEventListener("click", () => popup(helpstoragetext));
     ui.helpfile.addEventListener("click", () => popup(helpfiletext));
+    ui.exit.addEventListener("click", () => globalThis.electronAPI.closeWindow());
 }
 //-----------------------------------------------------------------------------
 function makeSaveFileName(src) {

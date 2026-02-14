@@ -374,7 +374,7 @@ function confirmStart() {
             },
             {
                 text: "start new game",
-                callback: () => events.push({ event: "start" })
+                callback: () => startGame()
             }
         ]
     });

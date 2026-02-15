@@ -1,5 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
+
+let db;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -52,6 +55,35 @@ app.on('window-all-closed', () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
+// Load database 
+app.on('ready', () => {
+  const dbPath = path.join(app.getPath('userData'), 'jigsaw.db');
+  db = new DatabaseSync(dbPath);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS saved_games(
+      name TEXT PRIMARY KEY,
+      data TEXT
+    )
+  `);
+
+  ipcMain.on('save-data', (event, name, data) => {
+    try {
+      const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
+      stmt.run(name, data);
+      console.log('Autosaved successfully');
+    } catch (error) {
+      console.error('Autosave failed:', error);
+    }
+  });
+});
+
+app.on('before-quit', () => {
+  if (db) {
+    db.close();
+  }
+})
+
+// Exit button
 ipcMain.on('app-close-window', () => {
   const focusedWindow = BrowserWindow.getFocusedWindow();
   if (focusedWindow) {

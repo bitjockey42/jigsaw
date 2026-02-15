@@ -3,5 +3,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  closeWindow: () => ipcRenderer.send('app-close-window')
+  closeWindow: () => ipcRenderer.send('app-close-window'),
+  saveData: (name, data) => ipcRenderer.invoke('save-data', name, data)
 });

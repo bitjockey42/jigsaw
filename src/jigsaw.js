@@ -2275,12 +2275,10 @@ let events = []; // queue for events
                     //      frestore event - loadSaved(); already done in the event
                     state = 152;
                 } else {
-                    // restore game
-                    loadGame();
-                    if (puzzle.restoredString.length == 0) {
-                        state = 15; // silently ignore if something wrong
-                        break;
-                    }
+                    // restore/load game
+                    globalThis.electronAPI.loadData("puzzle1").then((result) => {
+                        puzzle.restoredString = result.data;
+                    });
 
                     state = 155;
                 }
@@ -2361,13 +2359,10 @@ function saveGame() {
     }
 }
 
-async function loadGame() {
+function loadGame() {
     try {
         // load game
-        const savedGame = await globalThis.electronAPI.loadData("puzzle1");
-        console.log("savedGame");
-        console.log(savedGame);
-        puzzle.restoredString = localStorage.getItem("savepuzzle");
+        globalThis.electronAPI.loadData("puzzle1").then((result) => puzzle.restoredString = result.data);
         if (puzzle.restoredString === null) puzzle.restoredString = "";
     } catch (exception) {
         puzzle.restoredString = "";

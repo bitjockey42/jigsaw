@@ -15,7 +15,8 @@ const createWindow = () => {
     width: 800,
     height: 600,
     autoHideMenuBar: true,
-    fullscreen: true,
+    fullscreen: false,
+    
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -25,7 +26,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished
@@ -65,26 +66,6 @@ app.on('ready', () => {
       data TEXT
     )
   `);
-
-  ipcMain.handle('save-data', (event, name, data) => {
-    try {
-      const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
-      stmt.run(name, data);
-      console.log('Autosaved successfully');
-    } catch (error) {
-      console.error('Autosave failed:', error);
-    }
-  });
-
-  ipcMain.handle('load-data', (event, name) => {
-    try {
-        const query = db.prepare('SELECT * FROM saved_games WHERE name = ?');
-        const results = query.get(name);
-        return results;
-    } catch (error) {
-      console.error('Loading failed:', error);
-    }
-  })
 });
 
 app.on('before-quit', () => {
@@ -100,3 +81,24 @@ ipcMain.on('app-close-window', () => {
     app.quit();
   }
 });
+
+ipcMain.handle('save-data', (event, name, data) => {
+  try {
+    const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
+    stmt.run(name, data);
+    console.log('Autosaved successfully');
+  } catch (error) {
+    console.error('Autosave failed:', error);
+  }
+});
+
+ipcMain.handle('load-data', async (event, name) => {
+  try {
+      const query = db.prepare('SELECT * FROM saved_games WHERE name = ?');
+      const results = await query.get(name);
+      console.log('Loaded game:', name);
+      return results;
+  } catch (error) {
+    console.error('Loading failed:', error);
+  }
+})

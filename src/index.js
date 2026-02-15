@@ -65,16 +65,6 @@ app.on('ready', () => {
       data TEXT
     )
   `);
-
-  ipcMain.on('save-data', (event, name, data) => {
-    try {
-      const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
-      stmt.run(name, data);
-      console.log('Autosaved successfully');
-    } catch (error) {
-      console.error('Autosave failed:', error);
-    }
-  });
 });
 
 app.on('before-quit', () => {
@@ -88,5 +78,15 @@ ipcMain.on('app-close-window', () => {
   const focusedWindow = BrowserWindow.getFocusedWindow();
   if (focusedWindow) {
     app.quit();
+  }
+});
+
+ipcMain.handle('save-data', (event, name, data) => {
+  try {
+    const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
+    stmt.run(name, data);
+    console.log('Autosaved successfully');
+  } catch (error) {
+    console.error('Autosave failed:', error);
   }
 });

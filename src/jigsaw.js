@@ -2355,6 +2355,7 @@ function save() {
     let savedString = JSON.stringify(savedData);
     try {
         localStorage.setItem("savepuzzle", savedString);
+        globalThis.electronAPI.saveData("puzzle1", savedString);
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);
     } catch (exception) {

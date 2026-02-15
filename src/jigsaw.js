@@ -2028,7 +2028,7 @@ let events = []; // queue for events
                 };
                 puzzle.drawPolyPieces();
                 state = 50;
-                //console.log("20");
+            //console.log("20");
             //break;
             /* wait for user grabbing a piece or other action */
             case 50:
@@ -2037,10 +2037,10 @@ let events = []; // queue for events
                     puzzle.drawPolyPieces();
                 }
                 if (!event) return;
-                if (event.event == "stop") { 
-                    save();
+                if (event.event == "stop") {
+                    saveGame();
                     state = 10;
-                    return; 
+                    return;
                 }
                 if (event.event == "nbpieces") {
                     puzzle.nbPieces = event.nbpieces;
@@ -2156,7 +2156,7 @@ let events = []; // queue for events
                         state = 50; // just go back waiting
                         if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 } // switch (event.event)
-                save();
+                saveGame();
                 //console.log("55");
                 break;
             case 56:
@@ -2275,12 +2275,8 @@ let events = []; // queue for events
                     //      frestore event - loadSaved(); already done in the event
                     state = 152;
                 } else {
-                    try {
-                        puzzle.restoredString = localStorage.getItem("savepuzzle");
-                        if (puzzle.restoredString === null) puzzle.restoredString = "";
-                    } catch (exception) {
-                        puzzle.restoredString = "";
-                    }
+                    // restore game
+                    loadGame();
                     if (puzzle.restoredString.length == 0) {
                         state = 15; // silently ignore if something wrong
                         break;
@@ -2350,7 +2346,7 @@ let events = []; // queue for events
 } // scope for animate
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-function save() {
+function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
@@ -2362,6 +2358,19 @@ function save() {
         popup(["Something went wrong trying to save the game.",
             "Consider saving the game in a file.",
             `JS says: ${exception.message}`]);
+    }
+}
+
+async function loadGame() {
+    try {
+        // load game
+        const savedGame = await globalThis.electronAPI.loadData("puzzle1");
+        console.log("savedGame");
+        console.log(savedGame);
+        puzzle.restoredString = localStorage.getItem("savepuzzle");
+        if (puzzle.restoredString === null) puzzle.restoredString = "";
+    } catch (exception) {
+        puzzle.restoredString = "";
     }
 }
 

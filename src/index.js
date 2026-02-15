@@ -65,6 +65,26 @@ app.on('ready', () => {
       data TEXT
     )
   `);
+
+  ipcMain.handle('save-data', (event, name, data) => {
+    try {
+      const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
+      stmt.run(name, data);
+      console.log('Autosaved successfully');
+    } catch (error) {
+      console.error('Autosave failed:', error);
+    }
+  });
+
+  ipcMain.handle('load-data', (event, name) => {
+    try {
+        const query = db.prepare('SELECT * FROM saved_games WHERE name = ?');
+        const results = query.get(name);
+        return results;
+    } catch (error) {
+      console.error('Loading failed:', error);
+    }
+  })
 });
 
 app.on('before-quit', () => {
@@ -78,15 +98,5 @@ ipcMain.on('app-close-window', () => {
   const focusedWindow = BrowserWindow.getFocusedWindow();
   if (focusedWindow) {
     app.quit();
-  }
-});
-
-ipcMain.handle('save-data', (event, name, data) => {
-  try {
-    const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
-    stmt.run(name, data);
-    console.log('Autosaved successfully');
-  } catch (error) {
-    console.error('Autosave failed:', error);
   }
 });

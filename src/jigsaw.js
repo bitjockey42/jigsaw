@@ -2267,8 +2267,8 @@ let events = []; // queue for events
                     //      frestore event - loadSaved(); already done in the event
                     state = 152;
                 } else {
-                    // restore/load game
-                    globalThis.electronAPI.loadData("puzzle1").then((result) => {
+                    // restore/load game from db
+                    globalThis.electronAPI.loadData(1).then((result) => {
                         puzzle.restoredString = result.data;
                     });
 
@@ -2340,23 +2340,13 @@ function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
-        globalThis.electronAPI.saveData("puzzle1", savedString);
+        globalThis.electronAPI.saveData(1, "Puzzle One",savedString);
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);
     } catch (exception) {
         popup(["Something went wrong trying to save the game.",
             "Consider saving the game in a file.",
             `JS says: ${exception.message}`]);
-    }
-}
-
-function loadGame() {
-    try {
-        // load game
-        globalThis.electronAPI.loadData("puzzle1").then((result) => puzzle.restoredString = result.data);
-        if (puzzle.restoredString === null) puzzle.restoredString = "";
-    } catch (exception) {
-        puzzle.restoredString = "";
     }
 }
 

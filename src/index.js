@@ -62,8 +62,11 @@ app.on('ready', () => {
   db = new DatabaseSync(dbPath);
   db.exec(`
     CREATE TABLE IF NOT EXISTS saved_games(
-      name TEXT PRIMARY KEY,
-      data TEXT
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT current_timestamp,
+      updated_at TEXT NOT NULL DEFAULT current_timestamp
     )
   `);
 });
@@ -82,23 +85,40 @@ ipcMain.on('app-close-window', () => {
   }
 });
 
-ipcMain.handle('save-data', (event, name, data) => {
+ipcMain.handle('save-data', (event, puzzleId, name, data) => {
   try {
-    const stmt = db.prepare('INSERT OR REPLACE INTO saved_games (name, data) VALUES (?, ?)');
-    stmt.run(name, data);
+    const stmt = db.prepare(`
+      INSERT INTO saved_games (id, name, data, updated_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT (id)
+      DO UPDATE SET name = EXCLUDED.name,
+        data = EXCLUDED.data,
+        updated_at = EXCLUDED.updated_at
+    `);
+    stmt.run(puzzleId, name, data);
     console.log('Autosaved successfully');
   } catch (error) {
     console.error('Autosave failed:', error);
   }
 });
 
-ipcMain.handle('load-data', async (event, name) => {
+ipcMain.handle('load-data', async (event, puzzleId) => {
   try {
-      const query = db.prepare('SELECT * FROM saved_games WHERE name = ?');
-      const results = await query.get(name);
-      console.log('Loaded game:', name);
+      const query = db.prepare('SELECT * FROM saved_games WHERE id = ?');
+      const results = await query.get(puzzleId);
+      console.log('Loaded game:', puzzleId);
       return results;
   } catch (error) {
     console.error('Loading failed:', error);
   }
-})
+});
+
+ipcMain.handle('list-games', async (event) => {
+  try {
+    const query = db.prepare('SELECT * FROM saved_games');
+    const results = query.all();
+    return results;
+  } catch (error) {
+    console.error('Loading games failed');
+  }
+});

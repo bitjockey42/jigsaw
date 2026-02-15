@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('app-close-window'),
-  saveData: (name, data) => ipcRenderer.invoke('save-data', name, data),
-  loadData: (name) => ipcRenderer.invoke('load-data', name),
+  saveData: (puzzleId, name, data) => ipcRenderer.invoke('save-data', puzzleId, name, data),
+  loadData: (puzzleId) => ipcRenderer.invoke('load-data', puzzleId),
+  listGames: () => ipcRenderer.invoke('list-games')
 });

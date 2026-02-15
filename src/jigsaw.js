@@ -2256,15 +2256,7 @@ let events = []; // queue for events
                     ui.fsave.classList.add("enhanced");
                     setTimeout(() => ui.fsave.classList.remove("enhanced"), 500);
                 } else {
-                    try {
-                        localStorage.setItem("savepuzzle", savedString);
-                        ui.save.classList.add("enhanced");
-                        setTimeout(() => ui.save.classList.remove("enhanced"), 500);
-                    } catch (exception) {
-                        popup(["Something went wrong trying to save the game.",
-                            "Consider saving the game in a file.",
-                            `JS says: ${exception.message}`]);
-                    }
+                    saveGame();
                 }
                 state = 50;
                 break;
@@ -2348,7 +2340,6 @@ function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
-        localStorage.setItem("savepuzzle", savedString);
         globalThis.electronAPI.saveData("puzzle1", savedString);
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);

@@ -436,25 +436,11 @@ function confirmStop() {
     });
 }
 
-function confirmImport() {
-    const input = document.createElement("input");
-    input.setAttribute("id", "puzzleName"); 
-    input.setAttribute("placeholder", "Enter new name");
-    new Modal({
-        lines: [input],
-        buttons: [{ text: "Start new game", callback: () => {
-            activePuzzleId = null;
-            activePuzzleName = input.value;
-            startGame();
-        } }]
-    });
-}
-
 function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
         savedGames = result;
-        new Modal({ headers: ["", "name", ""], rows: result });
+        new Modal({ headers: ["", "name", "updated_at", ""], rows: result });
     });
 }
 
@@ -480,14 +466,11 @@ const helptext = ["Thank you for playing my jigsaw puzzle game.",
     "Last, you can save a game in progress, and restore it later. Two methods are proposed, see individual help buttons for details."
 ];
 
-const helpstoragetext = ["With this method, the game is saved in your browser's data.",
-    "This method is fast - really a one-click action - but with a few drawbacks.",
-    "Although it is very popular, this method is not available on some devices.",
-    "Only one game can be saved at a time: every saved game replaces the previous one.",
-    "Furthermore, this method can fail, with locally loaded images bigger than a few Mb. A message will be issued in case of failure"];
+const helpstoragetext = ["With this method, the game is auto-saved to this game's internal database with the name you specified when you started the game."];
 
-const helpfiletext = ["This method stores the saved game in your download folder. Use the \"save name\" field to save different games with different names.",
+const helpfiletext = ["This method stores the saved game in your download folder to a file that ends with *.puz. Use the \"save name\" field to save different games with different names.",
     "On some devices, you are not limited to the download folder: you will be prompted for the destination folder and name.",
+    "When restoring a game from a file, if you move a piece after it's loaded, it'll be auto-saved to your computer to the game's database."
 ];
 //------------------------------------------------------------------------
 //------------------------------------------------------------------------

@@ -358,6 +358,7 @@ function makeSaveFileName(src) {
 function startGame() {
     events.push({ event: "nbpieces", nbpieces: Number(ui.nbpieces.value) });
 }
+
 function confirmStart() {
     const input = document.createElement("input");
     input.setAttribute("id", "puzzleName"); 
@@ -370,6 +371,7 @@ function confirmStart() {
         } }]
     });
 }
+
 function confirmStop() {
     if (!playing) return; // ignore if not playing
     new Modal({
@@ -379,6 +381,7 @@ function confirmStop() {
         ]
     });
 }
+
 function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
@@ -386,18 +389,41 @@ function showSavedGames() {
         const lines = savedGames.map(savedGame => {
             const info = document.createElement("span");
             info.innerHTML = `${savedGame.id} ${savedGame.name} (${savedGame.updated_at})`;
-            const button = document.createElement("button");
-            button.setAttribute("type", "button");
-            button.innerText = "Load";
-            info.appendChild(button);
-            button.addEventListener("click", () => {
+            // Load game
+            const loadButton = document.createElement("button");
+            loadButton.setAttribute("type", "button");
+            loadButton.innerText = "Load";
+            info.appendChild(loadButton);
+            // Delete game
+            const deleteButton = document.createElement("button");
+            deleteButton.setAttribute("type", "button");
+            deleteButton.innerText = "Delete";
+            info.appendChild(deleteButton);
+
+            loadButton.addEventListener("click", () => {
                 activePuzzleId = savedGame.id;
                 activePuzzleName = savedGame.name;
                 events.push({ event: "restore" })
             });
+            deleteButton.addEventListener("click", () => {
+                confirmDelete(savedGame.id);
+            });
+
             return info;
         });
         new Modal({ lines });
+    });
+}
+
+function confirmDelete(puzzleId) {
+    new Modal({
+        lines: ["Are you sure you want to delete this game ?"],
+        buttons: [{ text: "yes, delete it", callback: () => {
+            // delete game
+            globalThis.electronAPI.deleteData(puzzleId);
+        } },
+        { text: "cancel" }
+        ]
     });
 }
 //------------------------------------------------------------------------

@@ -116,6 +116,18 @@ ipcMain.handle('load-data', async (event, puzzleId) => {
   }
 });
 
+ipcMain.handle('delete-data', async (event, puzzleId) => {
+  try {
+      const stmt = db.prepare('DELETE FROM saved_games WHERE id = ?');
+      stmt.run(puzzleId);
+      console.log(`Deleted puzzle ${puzzleId}`);
+  } catch (error) {
+    console.error('Loading failed:', error);
+  }
+});
+
+
+
 ipcMain.handle('list-saved-games', async (event) => {
   try {
     const query = db.prepare('SELECT * FROM saved_games ORDER BY updated_at DESC');

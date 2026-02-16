@@ -2361,7 +2361,11 @@ function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
-        globalThis.electronAPI.saveData(activePuzzleId, activePuzzleName, savedString).then((result) => activePuzzleId = result);
+        globalThis.electronAPI.saveData(activePuzzleId, activePuzzleName, savedString).then((result) => {
+            if (!activePuzzleId) {
+                activePuzzleId = result;
+            }
+        });
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);
     } catch (exception) {

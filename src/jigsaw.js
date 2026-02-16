@@ -436,6 +436,20 @@ function confirmStop() {
     });
 }
 
+function confirmImport() {
+    const input = document.createElement("input");
+    input.setAttribute("id", "puzzleName"); 
+    input.setAttribute("placeholder", "Enter new name");
+    new Modal({
+        lines: [input],
+        buttons: [{ text: "Start new game", callback: () => {
+            activePuzzleId = null;
+            activePuzzleName = input.value;
+            startGame();
+        } }]
+    });
+}
+
 function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
@@ -1921,6 +1935,8 @@ let loadSaved;
 
         reader.addEventListener('load', () => {
             puzzle.restoredString = reader.result;
+            activePuzzleId = null;
+            activePuzzleName = JSON.parse(reader.result).origin;
             loading = false;
             events.push({ event: "restored" });
             if (fname.endsWith(fileExtension)) {

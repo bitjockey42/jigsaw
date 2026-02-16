@@ -260,7 +260,7 @@ function prepareUI() {
     ui = {};  // User Interface HTML elements
 
     ["default", "load", "enablerot", "enablerotlabel", "shape", "nbpieces", "start", "stop",
-        "helpstorage", "save", "restore", "loadsaved", "helpfile", "fsave", "frestore",
+        "helpstorage", "save", "loadsaved", "helpfile", "fsave", "frestore",
         "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
 
     ui.open = () => {
@@ -281,7 +281,7 @@ function prepareUI() {
         ui.start.removeAttribute("disabled");
         ui.stop.setAttribute("disabled", "");
         ui.save.setAttribute("disabled", "");
-        ui.restore.removeAttribute("disabled");
+        ui.loadsaved.removeAttribute("disabled");
         ui.fsave.setAttribute("disabled", "");
         ui.frestore.removeAttribute("disabled");
     }
@@ -294,7 +294,6 @@ function prepareUI() {
         ui.start.setAttribute("disabled", "");
         ui.stop.removeAttribute("disabled");
         ui.save.removeAttribute("disabled");
-        ui.restore.setAttribute("disabled", "");
         ui.loadsaved.setAttribute("disabled", "");
         ui.fsave.removeAttribute("disabled");
         ui.frestore.setAttribute("disabled", "");
@@ -307,10 +306,9 @@ function prepareUI() {
 
     ui.default.addEventListener("click", loadInitialFile);
     ui.load.addEventListener("click", loadFile);
-    ui.start.addEventListener("click", confirmStart);
+    ui.start.addEventListener("click", startGame);
     ui.stop.addEventListener("click", confirmStop);
     ui.save.addEventListener("click", () => events.push({ event: "save" }));
-    ui.restore.addEventListener("click", () => events.push({ event: "restore" }));
     ui.loadsaved.addEventListener("click", showSavedGames);
     ui.fsave.addEventListener("click", () => events.push({ event: "save", file: true }));
     ui.frestore.addEventListener("click", () => {
@@ -363,22 +361,6 @@ function confirmStop() {
         lines: ["Are you sure you want to stop this game ?"],
         buttons: [{ text: "stop", callback: () => events.push({ event: "stop" }) },
         { text: "continue" }
-        ]
-    });
-}
-function confirmStart() {
-    if (playing) return; // ignore if not playing
-    new Modal({
-        lines: ["Are you sure you want to start a new game?"],
-        buttons: [
-            {
-                text: "restore game",
-                callback: () => events.push({ event: "restore" })
-            },
-            {
-                text: "start new game",
-                callback: () => startGame()
-            }
         ]
     });
 }

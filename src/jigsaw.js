@@ -439,42 +439,6 @@ function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
         savedGames = result;
-        
-        // const rows = savedGames.map(savedGame => {
-        //     const row = document.createElement("tr");
-
-        //     // Load game
-        //     const loadButton = document.createElement("button");
-        //     loadButton.setAttribute("type", "button");
-        //     loadButton.innerText = "Load";
-        //     loadButton.addEventListener("click", () => {
-        //         activePuzzleId = savedGame.id;
-        //         activePuzzleName = savedGame.name;
-        //         events.push({ event: "restore" })
-        //     });
-        //     const loadButtonColumn = document.createElement("td");
-        //     loadButtonColumn.appendChild(loadButton);
-        //     row.append(loadButtonColumn);
-
-        //     ["name", "created_at", "updated_at"].forEach(columName => {
-        //         const column = document.createElement("td");
-        //         column.innerHTML = savedGame[columName];
-        //         row.appendChild(column);
-        //     })
-
-        //     // Delete game
-        //     const deleteButton = document.createElement("button");
-        //     deleteButton.setAttribute("type", "button");
-        //     deleteButton.innerText = "Delete";
-        //     deleteButton.addEventListener("click", () => {
-        //         confirmDelete(savedGame.id);
-        //     });
-        //     const deleteButtonColumn = document.createElement("td");
-        //     deleteButtonColumn.appendChild(deleteButton);
-        //     row.append(deleteButtonColumn);
-
-        //     return row;
-        // });
         new Modal({ headers: ["", "name", "updated_at", ""], rows: result });
     });
 }

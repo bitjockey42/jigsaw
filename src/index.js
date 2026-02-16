@@ -95,8 +95,9 @@ ipcMain.handle('save-data', (event, puzzleId, name, data) => {
         data = EXCLUDED.data,
         updated_at = EXCLUDED.updated_at
     `);
-    stmt.run(puzzleId, name, data);
+    const result = stmt.run(puzzleId, name, data);
     console.log('Autosaved successfully');
+    return result.lastInsertRowid;
   } catch (error) {
     console.error('Autosave failed:', error);
   }
@@ -115,7 +116,7 @@ ipcMain.handle('load-data', async (event, puzzleId) => {
 
 ipcMain.handle('list-saved-games', async (event) => {
   try {
-    const query = db.prepare('SELECT * FROM saved_games');
+    const query = db.prepare('SELECT * FROM saved_games ORDER BY updated_at DESC');
     const results = query.all();
     console.log(results);
     return results;

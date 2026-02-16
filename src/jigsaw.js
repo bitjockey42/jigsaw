@@ -9,6 +9,7 @@ let playing;
 let useMouse = true;
 let lastMousePos;
 let ui; // user interface (menu)
+let savedGames = [];
 let activePuzzleName;
 let activePuzzleId;
 let shouldAutosave = false;
@@ -308,7 +309,7 @@ function prepareUI() {
 
     ui.default.addEventListener("click", loadInitialFile);
     ui.load.addEventListener("click", loadFile);
-    ui.start.addEventListener("click", startGame);
+    ui.start.addEventListener("click", confirmStart);
     ui.stop.addEventListener("click", confirmStop);
     ui.save.addEventListener("click", () => events.push({ event: "save" }));
     ui.loadsaved.addEventListener("click", showSavedGames);
@@ -357,6 +358,18 @@ function makeSaveFileName(src) {
 function startGame() {
     events.push({ event: "nbpieces", nbpieces: Number(ui.nbpieces.value) });
 }
+function confirmStart() {
+    const input = document.createElement("input");
+    input.setAttribute("id", "puzzleName"); 
+    new Modal({
+        lines: [input],
+        buttons: [{ text: "Start new game", callback: () => {
+            activePuzzleId = null;
+            activePuzzleName = input.value;
+            startGame();
+        } }]
+    });
+}
 function confirmStop() {
     if (!playing) return; // ignore if not playing
     new Modal({
@@ -369,7 +382,8 @@ function confirmStop() {
 function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
-        const lines = result.map(savedGame => {
+        savedGames = result;
+        const lines = savedGames.map(savedGame => {
             const info = document.createElement("span");
             info.innerHTML = `${savedGame.id} ${savedGame.name} (${savedGame.updated_at})`;
             const button = document.createElement("button");
@@ -2347,7 +2361,7 @@ function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
-        globalThis.electronAPI.saveData(activePuzzleId, activePuzzleName, savedString);
+        globalThis.electronAPI.saveData(activePuzzleId, activePuzzleName, savedString).then((result) => activePuzzleId = result);
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);
     } catch (exception) {

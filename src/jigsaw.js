@@ -10,6 +10,7 @@ let useMouse = true;
 let lastMousePos;
 let ui; // user interface (menu)
 let activePuzzleId;
+let shouldAutosave = false;
 const fileExtension = ".puz";
 const fileSignature = "pzfilecct"; // just to check reloaded game has a chance to be a good one
 
@@ -2091,7 +2092,7 @@ let events = []; // queue for events
                     if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 //console.log("50");
-                //save();
+                if (shouldAutosave) saveGame();
                 break;
 
             case 55:  // moving piece
@@ -2160,7 +2161,7 @@ let events = []; // queue for events
                         state = 50; // just go back waiting
                         if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 } // switch (event.event)
-                saveGame();
+                shouldAutosave = true;
                 //console.log("55");
                 break;
             case 56:
@@ -2352,6 +2353,15 @@ function saveGame() {
             "Consider saving the game in a file.",
             `JS says: ${exception.message}`]);
     }
+    shouldAutosave = false;
+}
+
+function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
 }
 
 prepareUI();

@@ -15,7 +15,7 @@ const createWindow = () => {
     width: 800,
     height: 600,
     autoHideMenuBar: true,
-    fullscreen: true,
+    fullscreen: false,
     
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -26,7 +26,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished
@@ -113,10 +113,11 @@ ipcMain.handle('load-data', async (event, puzzleId) => {
   }
 });
 
-ipcMain.handle('list-games', async (event) => {
+ipcMain.handle('list-saved-games', async (event) => {
   try {
     const query = db.prepare('SELECT * FROM saved_games');
     const results = query.all();
+    console.log(results);
     return results;
   } catch (error) {
     console.error('Loading games failed');

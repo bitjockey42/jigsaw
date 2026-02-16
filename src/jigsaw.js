@@ -9,6 +9,7 @@ let playing;
 let useMouse = true;
 let lastMousePos;
 let ui; // user interface (menu)
+let savedGames = [];
 const fileExtension = ".puz";
 const fileSignature = "pzfilecct"; // just to check reloaded game has a chance to be a good one
 
@@ -259,7 +260,7 @@ function prepareUI() {
     ui = {};  // User Interface HTML elements
 
     ["default", "load", "enablerot", "enablerotlabel", "shape", "nbpieces", "start", "stop",
-        "helpstorage", "save", "restore", "helpfile", "fsave", "frestore",
+        "helpstorage", "save", "restore", "loadsaved", "helpfile", "fsave", "frestore",
         "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
 
     ui.open = () => {
@@ -294,6 +295,7 @@ function prepareUI() {
         ui.stop.removeAttribute("disabled");
         ui.save.removeAttribute("disabled");
         ui.restore.setAttribute("disabled", "");
+        ui.loadsaved.setAttribute("disabled", "");
         ui.fsave.removeAttribute("disabled");
         ui.frestore.setAttribute("disabled", "");
     }
@@ -309,6 +311,7 @@ function prepareUI() {
     ui.stop.addEventListener("click", confirmStop);
     ui.save.addEventListener("click", () => events.push({ event: "save" }));
     ui.restore.addEventListener("click", () => events.push({ event: "restore" }));
+    ui.loadsaved.addEventListener("click", showSavedGames);
     ui.fsave.addEventListener("click", () => events.push({ event: "save", file: true }));
     ui.frestore.addEventListener("click", () => {
         loadSaved(); // for Safari, the load file process only works if run from an event listener
@@ -377,6 +380,15 @@ function confirmStart() {
                 callback: () => startGame()
             }
         ]
+    });
+}
+function showSavedGames() {
+    if (playing) return;
+    globalThis.electronAPI.listSavedGames().then((result) => {
+        savedGames = result;
+        new Modal({
+            lines: savedGames.map((game) => `${game.id}: ${game.name}`)
+        })
     });
 }
 //------------------------------------------------------------------------

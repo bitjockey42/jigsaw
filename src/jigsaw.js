@@ -439,7 +439,7 @@ function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
         savedGames = result;
-        new Modal({ headers: ["", "name", "updated_at", ""], rows: result });
+        new Modal({ headers: ["", "name", ""], rows: result });
     });
 }
 

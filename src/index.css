@@ -71,3 +71,7 @@ input {
   transition-duration: 1s;
   /*            transition-timing-function: linear; */
 }
+
+table td {
+  border: solid 1px #242424;
+}

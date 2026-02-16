@@ -393,7 +393,7 @@ function showSavedGames() {
         
         const header = document.createElement("tr");
         ["", "name", "created_at", "updated_at", ""].forEach(columnName => {
-            const column = document.createElement("td");
+            const column = document.createElement("th");
             column.innerHTML = columnName;
             header.appendChild(column);
         });

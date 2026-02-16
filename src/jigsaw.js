@@ -330,7 +330,7 @@ function prepareUI() {
     ui = {};  // User Interface HTML elements
 
     ["default", "load", "enablerot", "enablerotlabel", "shape", "nbpieces", "start", "stop",
-        "helpstorage", "save", "loadsaved", "helpfile", "fsave", "frestore",
+        "helpstorage", "save", "loadsaved", "rename", "helpfile", "fsave", "frestore",
         "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
 
     ui.open = () => {
@@ -352,6 +352,7 @@ function prepareUI() {
         ui.stop.setAttribute("disabled", "");
         ui.save.setAttribute("disabled", "");
         ui.loadsaved.removeAttribute("disabled");
+        ui.rename.setAttribute("disabled", "");
         ui.fsave.setAttribute("disabled", "");
         ui.frestore.removeAttribute("disabled");
     }
@@ -365,6 +366,7 @@ function prepareUI() {
         ui.stop.removeAttribute("disabled");
         ui.save.removeAttribute("disabled");
         ui.loadsaved.setAttribute("disabled", "");
+        ui.rename.removeAttribute("disabled");
         ui.fsave.removeAttribute("disabled");
         ui.frestore.setAttribute("disabled", "");
     }
@@ -380,6 +382,7 @@ function prepareUI() {
     ui.stop.addEventListener("click", confirmStop);
     ui.save.addEventListener("click", () => events.push({ event: "save" }));
     ui.loadsaved.addEventListener("click", showSavedGames);
+    ui.rename.addEventListener("click", () => confirmRename(activePuzzleId))
     ui.fsave.addEventListener("click", () => events.push({ event: "save", file: true }));
     ui.frestore.addEventListener("click", () => {
         loadSaved(); // for Safari, the load file process only works if run from an event listener
@@ -474,14 +477,21 @@ function confirmRename(puzzleId) {
     const input = document.createElement("input");
     input.setAttribute("id", "puzzleName"); 
     input.setAttribute("placeholder", "Enter new name");
+    const lines = ["Rename this game?"];
+
+    if (activePuzzleName) {
+        lines.push(`Current name: ${activePuzzleName}`);
+    }
+
+    lines.push(input);
 
     new Modal({
-        lines: ["Name this file?", input],
-
+        lines: lines,
         buttons: [{ text: "cancel" },
             { text: "yes, rename it", callback: () => {
                 // rename game
                 globalThis.electronAPI.renameData(puzzleId, input.value);
+                if (activePuzzleName) activePuzzleName = input.value;
                 showSavedGames();
             } },
         ]
@@ -2149,6 +2159,8 @@ let events = []; // queue for events
                 if (!event) return;
                 if (event.event == "stop") {
                     saveGame();
+                    activePuzzleId = null;
+                    activePuzzleName = null;
                     state = 10;
                     return;
                 }

@@ -203,7 +203,8 @@ class Modal {
         // properties : {lines, buttons}
         // lines : [strings] will be displayed in separate <p> tags
         // buttons :[{text:string, callback(optional):function}]
-        // rows: [element]
+        // headers: []
+        // rows: [{id:int, name:string, data:string}]
 
         let modal = document.createElement("dialog");
         modal.style.borderRadius = "5px";
@@ -232,9 +233,57 @@ class Modal {
                     if (buttonObj.callback) buttonObj.callback();
                 });
             })
-        } else if (properties?.rows?.length > 0) {
+        } else if (properties?.headers?.length > 0 || properties?.rows?.length > 0) {
             const table = document.createElement("table");
-            properties.rows.forEach(row => table.appendChild(row));
+
+            const header = document.createElement("tr");
+            properties.headers?.forEach(columnName => {
+                const column = document.createElement("th");
+                column.innerHTML = columnName;
+                header.appendChild(column);
+            });
+            table.appendChild(header)
+
+            properties.rows?.forEach(rowData => {
+                const row = document.createElement("tr");
+
+                // load game
+                const loadButton = document.createElement("button");
+                loadButton.setAttribute("type", "button");
+                loadButton.innerText = "Load";
+                loadButton.addEventListener("click", () => {
+                    activePuzzleId = rowData.id;
+                    activePuzzleName = rowData.name;
+                    modal.remove();
+                    modal = null;
+                    events.push({ event: "restore" })
+                });
+                const loadButtonColumn = document.createElement("td");
+                loadButtonColumn.appendChild(loadButton);
+                row.append(loadButtonColumn);
+
+                properties.headers.forEach(columnName => {
+                    if (!columnName) return;
+                    const column = document.createElement("td");
+                    column.innerHTML = rowData[columnName];
+                    row.appendChild(column);
+                })
+
+                // Delete game
+                const deleteButton = document.createElement("button");
+                deleteButton.setAttribute("type", "button");
+                deleteButton.innerText = "Delete";
+                deleteButton.addEventListener("click", () => {
+                    modal.remove();
+                    modal = null;
+                    confirmDelete(rowData.id);
+                });
+                const deleteButtonColumn = document.createElement("td");
+                deleteButtonColumn.appendChild(deleteButton);
+                row.append(deleteButtonColumn);
+
+                table.appendChild(row);
+            });
             modal.appendChild(table);
         } else {
             modal.addEventListener("click", () => {
@@ -391,49 +440,42 @@ function showSavedGames() {
     globalThis.electronAPI.listSavedGames().then((result) => {
         savedGames = result;
         
-        const header = document.createElement("tr");
-        ["", "name", "created_at", "updated_at", ""].forEach(columnName => {
-            const column = document.createElement("th");
-            column.innerHTML = columnName;
-            header.appendChild(column);
-        });
+        // const rows = savedGames.map(savedGame => {
+        //     const row = document.createElement("tr");
 
-        const rows = [header].concat(savedGames.map(savedGame => {
-            const row = document.createElement("tr");
+        //     // Load game
+        //     const loadButton = document.createElement("button");
+        //     loadButton.setAttribute("type", "button");
+        //     loadButton.innerText = "Load";
+        //     loadButton.addEventListener("click", () => {
+        //         activePuzzleId = savedGame.id;
+        //         activePuzzleName = savedGame.name;
+        //         events.push({ event: "restore" })
+        //     });
+        //     const loadButtonColumn = document.createElement("td");
+        //     loadButtonColumn.appendChild(loadButton);
+        //     row.append(loadButtonColumn);
 
-            // Load game
-            const loadButton = document.createElement("button");
-            loadButton.setAttribute("type", "button");
-            loadButton.innerText = "Load";
-            loadButton.addEventListener("click", () => {
-                activePuzzleId = savedGame.id;
-                activePuzzleName = savedGame.name;
-                events.push({ event: "restore" })
-            });
-            const loadButtonColumn = document.createElement("td");
-            loadButtonColumn.appendChild(loadButton);
-            row.append(loadButtonColumn);
+        //     ["name", "created_at", "updated_at"].forEach(columName => {
+        //         const column = document.createElement("td");
+        //         column.innerHTML = savedGame[columName];
+        //         row.appendChild(column);
+        //     })
 
-            ["name", "created_at", "updated_at"].forEach(columName => {
-                const column = document.createElement("td");
-                column.innerHTML = savedGame[columName];
-                row.appendChild(column);
-            })
+        //     // Delete game
+        //     const deleteButton = document.createElement("button");
+        //     deleteButton.setAttribute("type", "button");
+        //     deleteButton.innerText = "Delete";
+        //     deleteButton.addEventListener("click", () => {
+        //         confirmDelete(savedGame.id);
+        //     });
+        //     const deleteButtonColumn = document.createElement("td");
+        //     deleteButtonColumn.appendChild(deleteButton);
+        //     row.append(deleteButtonColumn);
 
-            // Delete game
-            const deleteButton = document.createElement("button");
-            deleteButton.setAttribute("type", "button");
-            deleteButton.innerText = "Delete";
-            deleteButton.addEventListener("click", () => {
-                confirmDelete(savedGame.id);
-            });
-            const deleteButtonColumn = document.createElement("td");
-            deleteButtonColumn.appendChild(deleteButton);
-            row.append(deleteButtonColumn);
-
-            return row;
-        }));
-        new Modal({ rows });
+        //     return row;
+        // });
+        new Modal({ headers: ["", "name", "updated_at", ""], rows: result });
     });
 }
 

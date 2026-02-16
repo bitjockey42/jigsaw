@@ -9,6 +9,7 @@ let playing;
 let useMouse = true;
 let lastMousePos;
 let ui; // user interface (menu)
+let activePuzzleName;
 let activePuzzleId;
 let shouldAutosave = false;
 const fileExtension = ".puz";
@@ -377,6 +378,7 @@ function showSavedGames() {
             info.appendChild(button);
             button.addEventListener("click", () => {
                 activePuzzleId = savedGame.id;
+                activePuzzleName = savedGame.name;
                 events.push({ event: "restore" })
             });
             return info;
@@ -2345,7 +2347,7 @@ function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
-        globalThis.electronAPI.saveData(1, "Puzzle One",savedString);
+        globalThis.electronAPI.saveData(activePuzzleId, activePuzzleName, savedString);
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);
     } catch (exception) {

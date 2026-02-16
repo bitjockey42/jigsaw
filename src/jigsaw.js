@@ -415,6 +415,7 @@ function startGame() {
 function confirmStart() {
     const input = document.createElement("input");
     input.setAttribute("id", "puzzleName"); 
+    input.setAttribute("placeholder", "Enter new name");
     new Modal({
         lines: [input],
         buttons: [{ text: "Start new game", callback: () => {

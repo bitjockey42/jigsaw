@@ -105,6 +105,20 @@ ipcMain.handle('save-data', (event, puzzleId, name, data) => {
   }
 });
 
+ipcMain.handle('rename-data', (event, puzzleId, name) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE saved_games
+      SET name = ?
+      WHERE id = ?
+    `);
+    const result = stmt.run(name, puzzleId);
+    return result;
+  } catch (error) {
+    console.error('Could not rename game');
+  }
+});
+
 ipcMain.handle('load-data', async (event, puzzleId) => {
   try {
       const query = db.prepare('SELECT * FROM saved_games WHERE id = ?');

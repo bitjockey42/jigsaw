@@ -262,6 +262,20 @@ class Modal {
                 loadButtonColumn.appendChild(loadButton);
                 row.append(loadButtonColumn);
 
+                // rename game
+                const renameButton = document.createElement("button");
+                renameButton.setAttribute("type", "button");
+                renameButton.innerText = "Rename";
+                renameButton.addEventListener("click", () => {
+                    modal.remove();
+                    modal = null;
+                    confirmRename(rowData.id);
+                });
+                const renameButtonColumn = document.createElement("td");
+                renameButtonColumn.appendChild(renameButton);
+                row.append(renameButtonColumn);
+
+                // display row data
                 properties.headers.forEach(columnName => {
                     if (!columnName) return;
                     const column = document.createElement("td");
@@ -440,7 +454,7 @@ function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
         savedGames = result;
-        new Modal({ headers: ["", "name", "updated_at", ""], rows: result });
+        new Modal({ headers: ["", "", "name", "updated_at", ""], rows: result });
     });
 }
 
@@ -455,6 +469,27 @@ function confirmDelete(puzzleId) {
         ]
     });
 }
+
+function confirmRename(puzzleId) {
+    const input = document.createElement("input");
+    input.setAttribute("id", "puzzleName"); 
+    input.setAttribute("placeholder", "Enter new name");
+
+    new Modal({
+        lines: ["Name this file?", input],
+
+        buttons: [{ text: "cancel" },
+            { text: "yes, rename it", callback: () => {
+                // rename game
+                globalThis.electronAPI.renameData(puzzleId, input.value);
+                showSavedGames();
+            } },
+        ]
+    });
+}
+
+
+
 //------------------------------------------------------------------------
 const helptext = ["Thank you for playing my jigsaw puzzle game.",
     "You can play with a default picture, or load any jpeg, png or other kind of picture from your computer.",

@@ -417,12 +417,12 @@ function showSavedGames() {
 
 function confirmDelete(puzzleId) {
     new Modal({
-        lines: ["Are you sure you want to delete this game ?"],
-        buttons: [{ text: "yes, delete it", callback: () => {
+        lines: ["Are you sure you want to delete this game? (This is irreversible)"],
+        buttons: [{ text: "cancel" },
+            { text: "yes, delete it", callback: () => {
             // delete game
             globalThis.electronAPI.deleteData(puzzleId);
-        } },
-        { text: "cancel" }
+            } },
         ]
     });
 }

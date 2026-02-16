@@ -9,7 +9,7 @@ let playing;
 let useMouse = true;
 let lastMousePos;
 let ui; // user interface (menu)
-let savedGames = [];
+let activePuzzleId;
 const fileExtension = ".puz";
 const fileSignature = "pzfilecct"; // just to check reloaded game has a chance to be a good one
 
@@ -385,10 +385,20 @@ function confirmStart() {
 function showSavedGames() {
     if (playing) return;
     globalThis.electronAPI.listSavedGames().then((result) => {
-        savedGames = result;
-        new Modal({
-            lines: savedGames.map((game) => `${game.id}: ${game.name}`)
-        })
+        const lines = result.map(savedGame => {
+            const info = document.createElement("span");
+            info.innerHTML = `${savedGame.id} ${savedGame.name} (${savedGame.updated_at})`;
+            const button = document.createElement("button");
+            button.setAttribute("type", "button");
+            button.innerText = "Load";
+            info.appendChild(button);
+            button.addEventListener("click", () => {
+                activePuzzleId = savedGame.id;
+                events.push({ event: "restore" })
+            });
+            return info;
+        });
+        new Modal({ lines });
     });
 }
 //------------------------------------------------------------------------
@@ -2280,7 +2290,7 @@ let events = []; // queue for events
                     state = 152;
                 } else {
                     // restore/load game from db
-                    globalThis.electronAPI.loadData(1).then((result) => {
+                    globalThis.electronAPI.loadData(activePuzzleId).then((result) => {
                         puzzle.restoredString = result.data;
                     });
 

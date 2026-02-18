@@ -1326,7 +1326,6 @@ class Puzzle {
         function handleLeave() {
             events.push({ event: 'leave' }); //
         }
-
     } // Puzzle
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2024,6 +2023,8 @@ function imageLoaded() {
             event.event = "wrongImage";
         } // if wrong size
     } // if restoring
+    const previewImage = document.getElementById("preview");
+    previewImage.setAttribute("src", puzzle.srcImage.src);
     events.push(event);
 } // imageLoaded
 

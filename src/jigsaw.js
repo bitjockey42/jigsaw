@@ -392,7 +392,7 @@ function prepareUI() {
     ui.helpstorage.addEventListener("click", () => popup(helpstoragetext));
     ui.helpfile.addEventListener("click", () => popup(helpfiletext));
     ui.togglefullscreen.addEventListener("click", () => globalThis.electronAPI.toggleFullscreen());
-    ui.exit.addEventListener("click", () => globalThis.electronAPI.closeWindow());
+    ui.exit.addEventListener("click", async () => await globalThis.electronAPI.closeWindow());
 }
 //-----------------------------------------------------------------------------
 function makeSaveFileName(src) {

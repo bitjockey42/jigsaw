@@ -3,7 +3,6 @@ const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 
 let db;
-let mainWindow;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -12,7 +11,7 @@ if (require('electron-squirrel-startup')) {
 
 const createWindow = () => {
   // Create the browser window.
-  mainWindow = new BrowserWindow({
+  const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     autoHideMenuBar: true,
@@ -30,6 +29,13 @@ const createWindow = () => {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
+  
+  // Toggle fullscreen
+  ipcMain.handle('toggle-fullscreen', async (event) => {
+    const isFullScreen = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFullScreen);
+    return !isFullScreen;
+  });
 };
 
 // This method will be called when Electron has finished
@@ -148,14 +154,5 @@ ipcMain.handle('list-saved-games', async (event) => {
     return results;
   } catch (error) {
     console.error('Loading games failed');
-  }
-});
-
-// Toggle fullscreen
-ipcMain.handle('toggle-fullscreen', (event) => {
-  if (mainWindow) {
-    const isFullScreen = mainWindow.isFullScreen();
-    mainWindow.setFullScreen(!isFullScreen);
-    return !isFullScreen;
   }
 });

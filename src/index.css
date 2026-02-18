@@ -93,7 +93,11 @@ table td {
   display: none;
 }
 
-#imageviewer img {
+#previewcontainer {
+  height: 75vh;
+}
+
+#previewcontainer img {
   width: 100%;
   height: 100%;
   object-fit: cover;

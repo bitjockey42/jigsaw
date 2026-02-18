@@ -58,10 +58,12 @@
       <p class="center"><button type="button" id="exit">Exit</button></p>
     </div> <!-- showhide -->
   </div> <!-- menu -->
-  <div id="imageviewer" class="hidden">
+  <div id="imageviewer" class="hidden" draggable="true">
     <p id="viewercontrols">preview</p>
     <div id="toggleviewer">
-      <img id="preview" src=""></img>
+      <div id="previewcontainer">
+        <img id="preview" src=""></img>
+      </div>
     </div>
   </div>
   <script src="jigsaw.js"></script>

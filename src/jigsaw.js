@@ -404,6 +404,60 @@ function prepareUI() {
             imageviewer.classList.add("hidden");
         }
     });
+
+    // https://gist.github.com/stephanbogner/75de4e84687ae6065fb0a4d81917543e
+    const draggable = document.getElementById("imageviewer");
+    const dragContainer = document.getElementById("previewcontainer");
+    initDrag(draggable);
+  
+    function usePosition(x, y){
+      const w = dragContainer.offsetWidth;
+      const h = dragContainer.offsetHeight;
+      const relativeX = x/w;
+      const relativeY = y/h;
+      console.log(relativeX, relativeY);
+    }
+  
+    function initDrag(element) {
+      // Adapted from https://www.w3schools.com/howto/howto_js_draggable.asp
+      let dragStartMouseX = 0, dragStartMouseY = 0, diffX = 0, diffY = 0, positionX = 0, positionY = 0;
+      element.onmousedown = dragStart;
+  
+      function dragStart(e) {
+        e = e || window.event;
+        e.preventDefault();
+  
+        dragStartMouseX = e.clientX;
+        dragStartMouseY = e.clientY;
+        document.onmouseup = dragStop;
+        document.onmousemove = dragMove;
+      }
+  
+      function dragMove(e) {
+        e = e || window.event;
+        e.preventDefault();
+  
+        let currentMouseX = e.clientX;
+        let currentMouseY = e.clientY;
+  
+        diffX = dragStartMouseX - currentMouseX;
+        diffY = dragStartMouseY - currentMouseY;
+        
+        let newX = positionX - diffX;
+        let newY = positionY - diffY;
+  
+        element.style.transform = 'translate(' + newX + 'px,' + newY + 'px)'
+  
+        usePosition(newX, newY);
+      }
+  
+      function dragStop() {
+        positionX -= diffX;
+        positionY -= diffY;
+        document.onmouseup = null;
+        document.onmousemove = null;
+      }
+    }
 }
 //-----------------------------------------------------------------------------
 function makeSaveFileName(src) {

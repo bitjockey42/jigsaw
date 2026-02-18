@@ -16,6 +16,7 @@ const createWindow = () => {
     height: 600,
     autoHideMenuBar: true,
     fullscreen: app.isPackaged,
+    fullscreenable: true,
     
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

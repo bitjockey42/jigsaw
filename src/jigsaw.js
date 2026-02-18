@@ -2218,8 +2218,8 @@ let events = []; // queue for events
                     state = 110; // go zooming with double touch
                 } else if (event.event == "wheel") {
                     const center = event.center ? event.center : lastMousePos;
-                    if (event.wheel.deltaY > 0) puzzle.zoomBy(1.3, center);
-                    if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
+                    if (event.wheel.deltaY < 0) puzzle.zoomBy(1.3, center);
+                    if (event.wheel.deltaY > 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 //console.log("50");
                 if (shouldAutosave) saveGame();

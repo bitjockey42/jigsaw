@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameData: (puzzleId, name) => ipcRenderer.invoke('rename-data', puzzleId, name),
   loadData: (puzzleId) => ipcRenderer.invoke('load-data', puzzleId),
   deleteData: (puzzleId) => ipcRenderer.invoke('delete-data', puzzleId),
-  listSavedGames: () => ipcRenderer.invoke('list-saved-games')
+  listSavedGames: () => ipcRenderer.invoke('list-saved-games'),
+  toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen')
 });

@@ -29,6 +29,13 @@ const createWindow = () => {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Toggle fullscreen
+  ipcMain.handle('toggle-fullscreen', (event) => {
+    const isFullScreen = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFullScreen);
+    return !isFullScreen;
+  });
 };
 
 // This method will be called when Electron has finished

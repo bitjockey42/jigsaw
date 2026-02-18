@@ -393,6 +393,17 @@ function prepareUI() {
     ui.helpfile.addEventListener("click", () => popup(helpfiletext));
     ui.togglefullscreen.addEventListener("click", () => globalThis.electronAPI.toggleFullscreen());
     ui.exit.addEventListener("click", async () => await globalThis.electronAPI.closeWindow());
+
+    // toggle imageviewer handler
+    let imageviewer = document.getElementById("imageviewer");
+    let viewercontrols = document.getElementById("viewercontrols");
+    viewercontrols.addEventListener("click", () => {
+        if (imageviewer.classList.contains("hidden")) {
+            imageviewer.classList.remove("hidden");
+        } else {
+            imageviewer.classList.add("hidden");
+        }
+    });
 }
 //-----------------------------------------------------------------------------
 function makeSaveFileName(src) {

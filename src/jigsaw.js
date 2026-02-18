@@ -9,6 +9,10 @@ let playing;
 let useMouse = true;
 let lastMousePos;
 let ui; // user interface (menu)
+let savedGames = [];
+let activePuzzleName;
+let activePuzzleId;
+let shouldAutosave = false;
 const fileExtension = ".puz";
 const fileSignature = "pzfilecct"; // just to check reloaded game has a chance to be a good one
 
@@ -199,6 +203,8 @@ class Modal {
         // properties : {lines, buttons}
         // lines : [strings] will be displayed in separate <p> tags
         // buttons :[{text:string, callback(optional):function}]
+        // headers: []
+        // rows: [{id:int, name:string, data:string}]
 
         let modal = document.createElement("dialog");
         modal.style.borderRadius = "5px";
@@ -227,7 +233,72 @@ class Modal {
                     if (buttonObj.callback) buttonObj.callback();
                 });
             })
+        } else if (properties?.headers?.length > 0 || properties?.rows?.length > 0) {
+            const table = document.createElement("table");
 
+            const header = document.createElement("tr");
+            properties.headers?.forEach(columnName => {
+                const column = document.createElement("th");
+                column.innerHTML = columnName;
+                header.appendChild(column);
+            });
+            table.appendChild(header)
+
+            properties.rows?.forEach(rowData => {
+                const row = document.createElement("tr");
+
+                // load game
+                const loadButton = document.createElement("button");
+                loadButton.setAttribute("type", "button");
+                loadButton.innerText = "Load";
+                loadButton.addEventListener("click", () => {
+                    activePuzzleId = rowData.id;
+                    activePuzzleName = rowData.name;
+                    modal.remove();
+                    modal = null;
+                    events.push({ event: "restore" })
+                });
+                const loadButtonColumn = document.createElement("td");
+                loadButtonColumn.appendChild(loadButton);
+                row.append(loadButtonColumn);
+
+                // rename game
+                const renameButton = document.createElement("button");
+                renameButton.setAttribute("type", "button");
+                renameButton.innerText = "Rename";
+                renameButton.addEventListener("click", () => {
+                    modal.remove();
+                    modal = null;
+                    confirmRename(rowData.id);
+                });
+                const renameButtonColumn = document.createElement("td");
+                renameButtonColumn.appendChild(renameButton);
+                row.append(renameButtonColumn);
+
+                // display row data
+                properties.headers.forEach(columnName => {
+                    if (!columnName) return;
+                    const column = document.createElement("td");
+                    column.innerHTML = rowData[columnName];
+                    row.appendChild(column);
+                })
+
+                // Delete game
+                const deleteButton = document.createElement("button");
+                deleteButton.setAttribute("type", "button");
+                deleteButton.innerText = "Delete";
+                deleteButton.addEventListener("click", () => {
+                    modal.remove();
+                    modal = null;
+                    confirmDelete(rowData.id);
+                });
+                const deleteButtonColumn = document.createElement("td");
+                deleteButtonColumn.appendChild(deleteButton);
+                row.append(deleteButtonColumn);
+
+                table.appendChild(row);
+            });
+            modal.appendChild(table);
         } else {
             modal.addEventListener("click", () => {
                 modal.remove();
@@ -259,7 +330,7 @@ function prepareUI() {
     ui = {};  // User Interface HTML elements
 
     ["default", "load", "enablerot", "enablerotlabel", "shape", "nbpieces", "start", "stop",
-        "helpstorage", "save", "restore", "helpfile", "fsave", "frestore",
+        "helpstorage", "save", "loadsaved", "rename", "helpfile", "fsave", "frestore",
         "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
 
     ui.open = () => {
@@ -280,7 +351,8 @@ function prepareUI() {
         ui.start.removeAttribute("disabled");
         ui.stop.setAttribute("disabled", "");
         ui.save.setAttribute("disabled", "");
-        ui.restore.removeAttribute("disabled");
+        ui.loadsaved.removeAttribute("disabled");
+        ui.rename.setAttribute("disabled", "");
         ui.fsave.setAttribute("disabled", "");
         ui.frestore.removeAttribute("disabled");
     }
@@ -293,7 +365,8 @@ function prepareUI() {
         ui.start.setAttribute("disabled", "");
         ui.stop.removeAttribute("disabled");
         ui.save.removeAttribute("disabled");
-        ui.restore.setAttribute("disabled", "");
+        ui.loadsaved.setAttribute("disabled", "");
+        ui.rename.removeAttribute("disabled");
         ui.fsave.removeAttribute("disabled");
         ui.frestore.setAttribute("disabled", "");
     }
@@ -308,7 +381,8 @@ function prepareUI() {
     ui.start.addEventListener("click", confirmStart);
     ui.stop.addEventListener("click", confirmStop);
     ui.save.addEventListener("click", () => events.push({ event: "save" }));
-    ui.restore.addEventListener("click", () => events.push({ event: "restore" }));
+    ui.loadsaved.addEventListener("click", showSavedGames);
+    ui.rename.addEventListener("click", () => confirmRename(activePuzzleId))
     ui.fsave.addEventListener("click", () => events.push({ event: "save", file: true }));
     ui.frestore.addEventListener("click", () => {
         loadSaved(); // for Safari, the load file process only works if run from an event listener
@@ -354,6 +428,21 @@ function makeSaveFileName(src) {
 function startGame() {
     events.push({ event: "nbpieces", nbpieces: Number(ui.nbpieces.value) });
 }
+
+function confirmStart() {
+    const input = document.createElement("input");
+    input.setAttribute("id", "puzzleName"); 
+    input.setAttribute("placeholder", "Enter new name");
+    new Modal({
+        lines: [input],
+        buttons: [{ text: "Start new game", callback: () => {
+            activePuzzleId = null;
+            activePuzzleName = input.value;
+            startGame();
+        } }]
+    });
+}
+
 function confirmStop() {
     if (!playing) return; // ignore if not playing
     new Modal({
@@ -363,22 +452,54 @@ function confirmStop() {
         ]
     });
 }
-function confirmStart() {
-    if (playing) return; // ignore if not playing
+
+function showSavedGames() {
+    if (playing) return;
+    globalThis.electronAPI.listSavedGames().then((result) => {
+        savedGames = result;
+        new Modal({ headers: ["", "", "name", "updated_at", ""], rows: result });
+    });
+}
+
+function confirmDelete(puzzleId) {
     new Modal({
-        lines: ["Are you sure you want to start a new game?"],
-        buttons: [
-            {
-                text: "restore game",
-                callback: () => events.push({ event: "restore" })
-            },
-            {
-                text: "start new game",
-                callback: () => startGame()
-            }
+        lines: ["Are you sure you want to delete this game? (This is irreversible)"],
+        buttons: [{ text: "cancel" },
+            { text: "yes, delete it", callback: () => {
+            // delete game
+            globalThis.electronAPI.deleteData(puzzleId);
+            } },
         ]
     });
 }
+
+function confirmRename(puzzleId) {
+    const input = document.createElement("input");
+    input.setAttribute("id", "puzzleName"); 
+    input.setAttribute("placeholder", "Enter new name");
+    const lines = ["Rename this game?"];
+
+    if (activePuzzleName) {
+        lines.push(`Current name: ${activePuzzleName}`);
+    }
+
+    lines.push(input);
+
+    new Modal({
+        lines: lines,
+        buttons: [{ text: "cancel" },
+            { text: "yes, rename it", callback: () => {
+                // rename game
+                globalThis.electronAPI.renameData(puzzleId, input.value);
+                if (activePuzzleName) activePuzzleName = input.value;
+                showSavedGames();
+            } },
+        ]
+    });
+}
+
+
+
 //------------------------------------------------------------------------
 const helptext = ["Thank you for playing my jigsaw puzzle game.",
     "You can play with a default picture, or load any jpeg, png or other kind of picture from your computer.",
@@ -390,14 +511,11 @@ const helptext = ["Thank you for playing my jigsaw puzzle game.",
     "Last, you can save a game in progress, and restore it later. Two methods are proposed, see individual help buttons for details."
 ];
 
-const helpstoragetext = ["With this method, the game is saved in your browser's data.",
-    "This method is fast - really a one-click action - but with a few drawbacks.",
-    "Although it is very popular, this method is not available on some devices.",
-    "Only one game can be saved at a time: every saved game replaces the previous one.",
-    "Furthermore, this method can fail, with locally loaded images bigger than a few Mb. A message will be issued in case of failure"];
+const helpstoragetext = ["With this method, the game is auto-saved to this game's internal database with the name you specified when you started the game."];
 
-const helpfiletext = ["This method stores the saved game in your download folder. Use the \"save name\" field to save different games with different names.",
+const helpfiletext = ["This method stores the saved game in your download folder to a file that ends with *.puz. Use the \"save name\" field to save different games with different names.",
     "On some devices, you are not limited to the download folder: you will be prompted for the destination folder and name.",
+    "When restoring a game from a file, if you move a piece after it's loaded, it'll be auto-saved to your computer to the game's database."
 ];
 //------------------------------------------------------------------------
 //------------------------------------------------------------------------
@@ -1845,6 +1963,8 @@ let loadSaved;
 
         reader.addEventListener('load', () => {
             puzzle.restoredString = reader.result;
+            activePuzzleId = null;
+            activePuzzleName = JSON.parse(reader.result).origin;
             loading = false;
             events.push({ event: "restored" });
             if (fname.endsWith(fileExtension)) {
@@ -2039,6 +2159,8 @@ let events = []; // queue for events
                 if (!event) return;
                 if (event.event == "stop") {
                     saveGame();
+                    activePuzzleId = null;
+                    activePuzzleName = null;
                     state = 10;
                     return;
                 }
@@ -2087,7 +2209,7 @@ let events = []; // queue for events
                     if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 //console.log("50");
-                //save();
+                if (shouldAutosave) saveGame();
                 break;
 
             case 55:  // moving piece
@@ -2156,7 +2278,7 @@ let events = []; // queue for events
                         state = 50; // just go back waiting
                         if (puzzle.polyPieces.length == 1 && puzzle.polyPieces[0].rot == 0) state = 60; // won!
                 } // switch (event.event)
-                saveGame();
+                shouldAutosave = true;
                 //console.log("55");
                 break;
             case 56:
@@ -2268,7 +2390,7 @@ let events = []; // queue for events
                     state = 152;
                 } else {
                     // restore/load game from db
-                    globalThis.electronAPI.loadData(1).then((result) => {
+                    globalThis.electronAPI.loadData(activePuzzleId).then((result) => {
                         puzzle.restoredString = result.data;
                     });
 
@@ -2340,7 +2462,11 @@ function saveGame() {
     let savedData = puzzle.getStateData();
     let savedString = JSON.stringify(savedData);
     try {
-        globalThis.electronAPI.saveData(1, "Puzzle One",savedString);
+        globalThis.electronAPI.saveData(activePuzzleId, activePuzzleName, savedString).then((result) => {
+            if (!activePuzzleId) {
+                activePuzzleId = result;
+            }
+        });
         ui.save.classList.add("enhanced");
         setTimeout(() => ui.save.classList.remove("enhanced"), 500);
     } catch (exception) {
@@ -2348,6 +2474,7 @@ function saveGame() {
             "Consider saving the game in a file.",
             `JS says: ${exception.message}`]);
     }
+    shouldAutosave = false;
 }
 
 prepareUI();

@@ -15,7 +15,7 @@ const createWindow = () => {
     width: 800,
     height: 600,
     autoHideMenuBar: true,
-    fullscreen: true,
+    fullscreen: app.isPackaged,
     
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -25,8 +25,10 @@ const createWindow = () => {
   // and load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  // Open the DevTools if in dev mode.
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools();
+  }
 };
 
 // This method will be called when Electron has finished
@@ -95,10 +97,25 @@ ipcMain.handle('save-data', (event, puzzleId, name, data) => {
         data = EXCLUDED.data,
         updated_at = EXCLUDED.updated_at
     `);
-    stmt.run(puzzleId, name, data);
+    const result = stmt.run(puzzleId, name, data);
     console.log('Autosaved successfully');
+    return result.lastInsertRowid;
   } catch (error) {
     console.error('Autosave failed:', error);
+  }
+});
+
+ipcMain.handle('rename-data', (event, puzzleId, name) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE saved_games
+      SET name = ?
+      WHERE id = ?
+    `);
+    const result = stmt.run(name, puzzleId);
+    return result;
+  } catch (error) {
+    console.error('Could not rename game');
   }
 });
 
@@ -113,9 +130,19 @@ ipcMain.handle('load-data', async (event, puzzleId) => {
   }
 });
 
-ipcMain.handle('list-games', async (event) => {
+ipcMain.handle('delete-data', async (event, puzzleId) => {
   try {
-    const query = db.prepare('SELECT * FROM saved_games');
+      const stmt = db.prepare('DELETE FROM saved_games WHERE id = ?');
+      stmt.run(puzzleId);
+      console.log(`Deleted puzzle ${puzzleId}`);
+  } catch (error) {
+    console.error('Loading failed:', error);
+  }
+});
+
+ipcMain.handle('list-saved-games', async (event) => {
+  try {
+    const query = db.prepare('SELECT * FROM saved_games ORDER BY updated_at DESC');
     const results = query.all();
     return results;
   } catch (error) {

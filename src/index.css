@@ -84,11 +84,9 @@ table td {
   right: 5px;
   top: 5px;
   border-radius: 10px;
-  background-color: rgba(255, 255, 128, 0.9);
-  color: black;
-  z-index: 10;
+  background-color: #444;
+  color: white;
   resize: both;
-  overflow: auto;
 }
 
 #imageviewer.hidden #toggleviewer {

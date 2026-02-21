@@ -331,7 +331,7 @@ function prepareUI() {
 
     ["default", "load", "enablerot", "enablerotlabel", "shape", "nbpieces", "start", "stop",
         "helpstorage", "save", "loadsaved", "rename", "helpfile", "fsave", "frestore",
-        "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
+        "help", "helpstorage", "helpfile", "saveas", "saveext", "drawmode", "togglefullscreen", "exit"].forEach(ctrlName => ui[ctrlName] = document.getElementById(ctrlName));
 
     ui.open = () => {
         menu.classList.remove("hidden");
@@ -391,7 +391,19 @@ function prepareUI() {
     ui.help.addEventListener("click", () => popup(helptext));
     ui.helpstorage.addEventListener("click", () => popup(helpstoragetext));
     ui.helpfile.addEventListener("click", () => popup(helpfiletext));
-    ui.exit.addEventListener("click", () => globalThis.electronAPI.closeWindow());
+    ui.togglefullscreen.addEventListener("click", () => globalThis.electronAPI.toggleFullscreen());
+    ui.exit.addEventListener("click", async () => await globalThis.electronAPI.closeWindow());
+
+    // toggle imageviewer handler
+    let imageviewer = document.getElementById("imageviewer");
+    let viewercontrols = document.getElementById("viewercontrols");
+    viewercontrols.addEventListener("click", () => {
+        if (imageviewer.classList.contains("hidden")) {
+            imageviewer.classList.remove("hidden");
+        } else {
+            imageviewer.classList.add("hidden");
+        }
+    });
 }
 //-----------------------------------------------------------------------------
 function makeSaveFileName(src) {
@@ -1314,7 +1326,6 @@ class Puzzle {
         function handleLeave() {
             events.push({ event: 'leave' }); //
         }
-
     } // Puzzle
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2012,6 +2023,8 @@ function imageLoaded() {
             event.event = "wrongImage";
         } // if wrong size
     } // if restoring
+    const previewImage = document.getElementById("preview");
+    previewImage.setAttribute("src", puzzle.srcImage.src);
     events.push(event);
 } // imageLoaded
 
@@ -2205,8 +2218,8 @@ let events = []; // queue for events
                     state = 110; // go zooming with double touch
                 } else if (event.event == "wheel") {
                     const center = event.center ? event.center : lastMousePos;
-                    if (event.wheel.deltaY > 0) puzzle.zoomBy(1.3, center);
-                    if (event.wheel.deltaY < 0) puzzle.zoomBy(1 / 1.3, center);
+                    if (event.wheel.deltaY < 0) puzzle.zoomBy(1.3, center);
+                    if (event.wheel.deltaY > 0) puzzle.zoomBy(1 / 1.3, center);
                 }
                 //console.log("50");
                 if (shouldAutosave) saveGame();

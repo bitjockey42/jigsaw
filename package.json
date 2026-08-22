@@ -1,7 +1,7 @@
 {
   "name": "jigsaw",
   "productName": "jigsaw",
-  "version": "1.4.0",
+  "version": "1.5.0-alpha.0",
   "description": "A jigsaw puzzle game",
   "main": "src/index.js",
   "private": true,

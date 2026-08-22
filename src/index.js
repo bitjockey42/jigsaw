@@ -16,6 +16,7 @@ const createWindow = () => {
     height: 600,
     autoHideMenuBar: true,
     fullscreen: app.isPackaged,
+    fullscreenable: true,
     
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -29,6 +30,13 @@ const createWindow = () => {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
+  
+  // Toggle fullscreen
+  ipcMain.handle('toggle-fullscreen', async (event) => {
+    const isFullScreen = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFullScreen);
+    return !isFullScreen;
+  });
 };
 
 // This method will be called when Electron has finished
